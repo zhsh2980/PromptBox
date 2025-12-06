@@ -409,6 +409,10 @@ function App() {
         next.delete(projectId);
       } else {
         next.add(projectId);
+        // 展开时加载任务（如果尚未加载）
+        if (!tasksByProject[projectId]) {
+          loadTasks(projectId);
+        }
       }
       return next;
     });
