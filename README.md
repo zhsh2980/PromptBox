@@ -123,9 +123,62 @@ A: 首次编译需要下载和编译所有依赖，通常需要 5-10 分钟。�
 ### Q: 应用无响应
 A: 尝试在终端按 `Ctrl + C` 停止应用，然后重新运行 `npm run tauri dev`
 
+## 发布新版本
+
+项目配置了 GitHub Actions 自动构建，支持 macOS (Intel/ARM) 和 Windows 平台。
+
+### 自动构建流程
+
+1. **更新版本号**（三个文件需同步修改）：
+   - `package.json` - `version` 字段
+   - `src-tauri/tauri.conf.json` - `version` 字段
+   - `src-tauri/Cargo.toml` - `version` 字段
+
+2. **提交并创建版本标签**：
+   ```bash
+   git add .
+   git commit -m "v1.0.1: 更新说明"
+   git push
+   
+   # 创建版本标签触发自动构建
+   git tag v1.0.1
+   git push origin v1.0.1
+   ```
+
+3. **等待构建完成**：
+   - 在 GitHub 仓库的 **Actions** 页面查看构建进度
+   - 构建成功后，会在 **Releases** 页面创建草稿
+
+4. **发布 Release**：
+   - 进入 **Releases** 页面
+   - 编辑草稿，添加更新说明
+   - 点击 **Publish release** 发布
+
+### 手动触发构建
+
+也可以不创建标签，手动触发构建：
+1. 进入 GitHub 仓库 → **Actions** → **Release**
+2. 点击 **Run workflow** → 选择分支 → **Run workflow**
+
+### 构建产物
+
+| 平台 | 文件 | 适用于 |
+|-----|------|--------|
+| macOS Intel | `*.x64.dmg` | Intel 芯片 Mac |
+| macOS ARM | `*.aarch64.dmg` | Apple Silicon (M1/M2/M3) Mac |
+| Windows | `*.msi` / `*.exe` | Windows 64-bit |
+
+### macOS 安装提示
+
+由于应用未经 Apple 签名，首次打开可能提示"无法验证开发者"。解决方法：
+
+```bash
+# 在终端执行（替换为实际安装路径）
+xattr -cr /Applications/promptlog.app
+```
+
 ---
 
 **快捷键：**
 - `Cmd/Ctrl + K` - 聚焦搜索框
 - `Cmd/Ctrl + R` - 刷新应用
-
