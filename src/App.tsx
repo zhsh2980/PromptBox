@@ -53,8 +53,6 @@ function App() {
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [tagFilter, setTagFilter] = useState<string | null>(null);
-  const [timeFilter, setTimeFilter] = useState<"all" | "7days" | "30days">("all");
   const [sortBy, setSortBy] = useState<"created" | "updated">("created");
 
   // UI 状态
@@ -221,7 +219,6 @@ function App() {
     if (selectedTaskId && !promptEntriesByTask[selectedTaskId]) {
       loadPrompts(selectedTaskId);
     }
-    setTagFilter(null);
   }, [selectedTaskId]);
 
   async function loadProjects() {
@@ -420,21 +417,7 @@ function App() {
   const currentTasks = selectedProjectId ? tasksByProject[selectedProjectId] || [] : [];
   const currentPrompts = selectedTaskId ? promptEntriesByTask[selectedTaskId] || [] : [];
 
-  // 时间过滤
-  const getTimeFilterDate = () => {
-    const now = new Date();
-    if (timeFilter === "7days") return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    if (timeFilter === "30days") return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    return null;
-  };
-
   const filteredPrompts = currentPrompts
-    .filter((p) => {
-      if (tagFilter && !p.tags?.includes(tagFilter)) return false;
-      const filterDate = getTimeFilterDate();
-      if (filterDate && new Date(p.created_at) < filterDate) return false;
-      return true;
-    })
     .sort((a, b) => {
       if (sortBy === "updated") {
         // 按修改时间排序（新的在前），如果没有修改时间则用创建时间
@@ -449,7 +432,7 @@ function App() {
   const selectedPrompt = filteredPrompts.find((p) => p.id === selectedPromptEntryId) ||
     currentPrompts.find((p) => p.id === selectedPromptEntryId);
 
-  const allTags = Array.from(new Set(currentPrompts.flatMap((p) => p.tags || []))).sort();
+
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
   const selectedTask = currentTasks.find((t) => t.id === selectedTaskId);

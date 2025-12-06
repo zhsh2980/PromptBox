@@ -7,6 +7,7 @@ export interface SearchParams {
     projectId?: number;
     taskId?: number;
     limit?: number;
+    [key: string]: unknown;
 }
 
 export const SearchApi = {
