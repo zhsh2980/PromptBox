@@ -996,7 +996,7 @@ function App() {
         </div>
       </div>
 
-      <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} isDark={isDark} />
       <ToastContainer />
     </div >
   );
