@@ -560,12 +560,12 @@ function App() {
                 <div key={project.id}>
                   {/* 项目项 */}
                   <div
-                    className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors group ${selectedProjectId === project.id ? styles.listItemActive : styles.listItem
+                    className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors group relative ${selectedProjectId === project.id ? styles.listItemActive : styles.listItem
                       }`}
                   >
                     <button
                       onClick={() => toggleProjectExpand(project.id)}
-                      className={`p-0.5 rounded ${styles.buttonHover}`}
+                      className={`p-0.5 rounded flex-shrink-0 ${styles.buttonHover}`}
                     >
                       {expandedProjects.has(project.id) ? (
                         <ChevronDown className={`w-4 h-4 ${styles.iconMuted}`} />
@@ -573,7 +573,7 @@ function App() {
                         <ChevronRight className={`w-4 h-4 ${styles.iconMuted}`} />
                       )}
                     </button>
-                    <FolderKanban className="w-4 h-4 text-blue-500" />
+                    <FolderKanban className="w-4 h-4 text-blue-500 flex-shrink-0" />
                     {editingProjectId === project.id ? (
                       <input
                         type="text"
@@ -582,10 +582,13 @@ function App() {
                         className={`flex-1 px-2 py-0.5 rounded text-sm ${styles.input}`}
                         autoFocus
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") handleUpdateProject(project.id);
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleUpdateProject(project.id);
+                          }
                           if (e.key === "Escape") setEditingProjectId(null);
                         }}
-                        onBlur={() => setEditingProjectId(null)}
+                        onBlur={() => handleUpdateProject(project.id)}
                       />
                     ) : (
                       <span
@@ -598,7 +601,15 @@ function App() {
                         {project.name}
                       </span>
                     )}
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* 悬停时显示的按钮 - 使用绝对定位和渐变遮罩 */}
+                    <div
+                      className={`absolute right-0 top-0 bottom-0 flex items-center gap-0.5 pr-2 pl-6 opacity-0 group-hover:opacity-100 transition-opacity ${isDark
+                        ? "bg-gradient-to-l from-zinc-800 via-zinc-800 to-transparent"
+                        : selectedProjectId === project.id
+                          ? "bg-gradient-to-l from-blue-100 via-blue-100 to-transparent"
+                          : "bg-gradient-to-l from-white via-white to-transparent"
+                        }`}
+                    >
                       {/* 新建任务按钮 */}
                       <button
                         onClick={(e) => {
@@ -620,6 +631,7 @@ function App() {
                           setEditingProjectName(project.name);
                         }}
                         className={`p-1 rounded ${styles.buttonHover}`}
+                        title="编辑"
                       >
                         <Edit3 className={`w-3 h-3 ${styles.icon}`} />
                       </button>
@@ -629,6 +641,7 @@ function App() {
                           handleDeleteProject(project.id);
                         }}
                         className={`p-1 rounded ${styles.buttonHover}`}
+                        title="删除"
                       >
                         <Trash2 className="w-3 h-3 text-red-500" />
                       </button>
@@ -645,10 +658,10 @@ function App() {
                             selectProject(project.id);
                             selectTask(task.id);
                           }}
-                          className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-colors group ${selectedTaskId === task.id ? styles.listItemActiveTask : styles.listItem
+                          className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-colors group relative ${selectedTaskId === task.id ? styles.listItemActiveTask : styles.listItem
                             }`}
                         >
-                          <ListTodo className="w-3.5 h-3.5 text-green-500" />
+                          <ListTodo className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
                           {editingTaskId === task.id ? (
                             <input
                               type="text"
@@ -657,15 +670,26 @@ function App() {
                               className={`flex-1 px-2 py-0.5 rounded text-xs ${styles.input}`}
                               autoFocus
                               onKeyDown={(e) => {
-                                if (e.key === "Enter") handleUpdateTask(task.id);
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleUpdateTask(task.id);
+                                }
                                 if (e.key === "Escape") setEditingTaskId(null);
                               }}
-                              onBlur={() => setEditingTaskId(null)}
+                              onBlur={() => handleUpdateTask(task.id)}
                             />
                           ) : (
                             <span className={`flex-1 text-sm truncate ${styles.textSecondary}`}>{task.name}</span>
                           )}
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {/* 悬停时显示的按钮 - 使用绝对定位和渐变遮罩 */}
+                          <div
+                            className={`absolute right-0 top-0 bottom-0 flex items-center gap-0.5 pr-2 pl-4 opacity-0 group-hover:opacity-100 transition-opacity ${isDark
+                              ? "bg-gradient-to-l from-zinc-800 via-zinc-800 to-transparent"
+                              : selectedTaskId === task.id
+                                ? "bg-gradient-to-l from-green-100 via-green-100 to-transparent"
+                                : "bg-gradient-to-l from-white via-white to-transparent"
+                              }`}
+                          >
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -673,6 +697,7 @@ function App() {
                                 setEditingTaskName(task.name);
                               }}
                               className={`p-0.5 rounded ${styles.buttonHover}`}
+                              title="编辑"
                             >
                               <Edit3 className={`w-3 h-3 ${styles.icon}`} />
                             </button>
@@ -682,6 +707,7 @@ function App() {
                                 handleDeleteTask(task.id);
                               }}
                               className={`p-0.5 rounded ${styles.buttonHover}`}
+                              title="删除"
                             >
                               <Trash2 className="w-3 h-3 text-red-500" />
                             </button>

@@ -1,6 +1,6 @@
 [package]
 name = "promptlog"
-version = "1.0.1"
+version = "1.0.2"
 description = "提示词记录软件 - 按项目/任务结构化管理 AI 提示词"
 authors = ["you"]
 edition = "2021"
