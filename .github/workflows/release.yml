@@ -58,3 +58,22 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      # Create portable zip for Windows
+      - name: Create Windows Portable ZIP
+        if: matrix.platform == 'windows-latest'
+        run: |
+          $exePath = "src-tauri/target/release/promptlog.exe"
+          if (Test-Path $exePath) {
+            Compress-Archive -Path $exePath -DestinationPath "PromptLog-Windows-Portable.zip"
+          }
+        shell: pwsh
+
+      - name: Upload Windows Portable ZIP
+        if: matrix.platform == 'windows-latest'
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: PromptLog-Windows-Portable.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
