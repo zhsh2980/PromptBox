@@ -21,6 +21,7 @@ import {
 import { ProjectApi, TaskApi, PromptApi } from "./tauri-api";
 import { useAppStore } from "./store";
 import { GlobalSearch, SettingsDialog, ToastContainer, toast } from "./components";
+import { ask } from "@tauri-apps/plugin-dialog";
 import type { SearchResultDto } from "./types";
 
 function App() {
@@ -57,7 +58,18 @@ function App() {
 
   // UI 状态
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set());
+  const [expandedProjects, setExpandedProjects] = useState<Set<number>>(() => {
+    const saved = localStorage.getItem("expandedProjects");
+    if (saved) {
+      try {
+        const arr = JSON.parse(saved) as number[];
+        return new Set(arr);
+      } catch {
+        return new Set();
+      }
+    }
+    return new Set();
+  });
   const [addingTaskForProject, setAddingTaskForProject] = useState<number | null>(null);
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     const saved = localStorage.getItem("theme");
@@ -201,13 +213,24 @@ function App() {
 
   // 加载项目列表
   useEffect(() => {
-    loadProjects();
+    loadProjects().then(() => {
+      // 为已展开的项目预加载任务数据
+      expandedProjects.forEach((projectId) => {
+        if (!tasksByProject[projectId]) {
+          loadTasks(projectId);
+        }
+      });
+    });
   }, []);
 
   // 当选中项目变化时，自动展开并加载任务
   useEffect(() => {
     if (selectedProjectId) {
-      setExpandedProjects((prev) => new Set([...prev, selectedProjectId]));
+      setExpandedProjects((prev) => {
+        const next = new Set([...prev, selectedProjectId]);
+        localStorage.setItem("expandedProjects", JSON.stringify([...next]));
+        return next;
+      });
       if (!tasksByProject[selectedProjectId]) {
         loadTasks(selectedProjectId);
       }
@@ -260,7 +283,10 @@ function App() {
 
   // 项目 CRUD
   async function handleCreateProject() {
-    if (!newProjectName.trim()) return;
+    if (!newProjectName.trim()) {
+      toast.warning("请输入项目名称");
+      return;
+    }
     setLoading(true);
     try {
       const project = await ProjectApi.create(newProjectName);
@@ -368,17 +394,7 @@ function App() {
     }
   }
 
-  async function handleDeletePrompt(id: number) {
-    if (!confirm("确定要删除此提示词吗？")) return;
-    try {
-      await PromptApi.remove(id);
-      removePrompt(id);
-      toast.success("提示词已删除");
-    } catch (e) {
-      toast.error("删除提示词失败");
-      console.error(e);
-    }
-  }
+
 
   async function handleCopyPrompt(content: string) {
     try {
@@ -414,6 +430,8 @@ function App() {
           loadTasks(projectId);
         }
       }
+      // 持久化展开状态
+      localStorage.setItem("expandedProjects", JSON.stringify([...next]));
       return next;
     });
   }
@@ -546,7 +564,7 @@ function App() {
                 />
                 <button
                   onClick={handleCreateProject}
-                  disabled={loading || !newProjectName.trim()}
+                  disabled={loading}
                   className="p-2 bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors disabled:opacity-50 text-white flex-shrink-0"
                 >
                   <Plus className="w-4 h-4" />
@@ -595,7 +613,11 @@ function App() {
                         className="flex-1 text-sm truncate"
                         onClick={() => {
                           selectProject(project.id);
-                          setExpandedProjects((prev) => new Set([...prev, project.id]));
+                          setExpandedProjects((prev) => {
+                            const next = new Set([...prev, project.id]);
+                            localStorage.setItem("expandedProjects", JSON.stringify([...next]));
+                            return next;
+                          });
                         }}
                       >
                         {project.name}
@@ -615,7 +637,11 @@ function App() {
                         onClick={(e) => {
                           e.stopPropagation();
                           selectProject(project.id);
-                          setExpandedProjects((prev) => new Set([...prev, project.id]));
+                          setExpandedProjects((prev) => {
+                            const next = new Set([...prev, project.id]);
+                            localStorage.setItem("expandedProjects", JSON.stringify([...next]));
+                            return next;
+                          });
                           setAddingTaskForProject(project.id);
                           setNewTaskName("");
                         }}
@@ -853,9 +879,24 @@ function App() {
                       </div>
                       {/* 删除按钮 - 悬停时显示 */}
                       <button
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          handleDeletePrompt(prompt.id);
+                          e.preventDefault();
+                          const promptId = prompt.id;
+                          const confirmed = await ask("确定要删除此提示词吗？", {
+                            title: "删除确认",
+                            kind: "warning",
+                          });
+                          if (confirmed) {
+                            try {
+                              await PromptApi.remove(promptId);
+                              removePrompt(promptId);
+                              toast.success("提示词已删除");
+                            } catch (err) {
+                              toast.error("删除提示词失败");
+                              console.error(err);
+                            }
+                          }
                         }}
                         className={`p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity ml-2 ${styles.buttonHover}`}
                         title="删除"
