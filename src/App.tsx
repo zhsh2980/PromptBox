@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FolderKanban,
   ListTodo,
@@ -6,10 +6,8 @@ import {
   Plus,
   Trash2,
   Copy,
-  Edit3,
   Settings,
   ChevronRight,
-  ChevronDown,
   Bot,
   PanelLeftClose,
   PanelLeft,
@@ -97,13 +95,6 @@ function App() {
 
   // 列宽拖拽状态
   const [resizing, setResizing] = useState<"sidebar" | "promptList" | null>(null);
-
-  // 项目/任务拖拽排序状态
-  const [dragType, setDragType] = useState<"project" | "task" | null>(null);
-  const [dragItemId, setDragItemId] = useState<number | null>(null);
-  const [dragOverId, setDragOverId] = useState<number | null>(null);
-  const [isDraggable, setIsDraggable] = useState(false);
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 处理拖拽
   const handleMouseDown = (column: "sidebar" | "promptList") => (e: React.MouseEvent) => {
@@ -443,124 +434,6 @@ function App() {
       return next;
     });
   }
-
-  // 长按开始 - 启动计时器
-  const handleLongPressStart = (type: "project" | "task", id: number) => (e: React.MouseEvent | React.TouchEvent) => {
-    // 阻止右键菜单等
-    if ('button' in e && e.button !== 0) return;
-
-    longPressTimerRef.current = setTimeout(() => {
-      setDragType(type);
-      setDragItemId(id);
-      setIsDraggable(true);
-    }, 300);
-  };
-
-  // 长按取消 - 清除计时器
-  const handleLongPressEnd = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  };
-
-  // 拖拽开始 - 简化版本，移除 isDraggable 检查
-  const handleDragStart = (type: "project" | "task", id: number) => (e: React.DragEvent) => {
-    setDragType(type);
-    setDragItemId(id);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", `${type}:${id}`);
-  };
-
-  // 拖拽结束
-  const handleDragEnd = () => {
-    setDragType(null);
-    setDragItemId(null);
-    setDragOverId(null);
-    setIsDraggable(false);
-  };
-
-  // 拖拽经过
-  const handleDragOver = (id: number) => (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setDragOverId(id);
-  };
-
-  // 拖拽离开
-  const handleDragLeave = () => {
-    setDragOverId(null);
-  };
-
-  // 放置项目
-  const handleDropProject = async (targetId: number) => {
-    if (!dragItemId || dragType !== "project" || dragItemId === targetId) {
-      handleDragEnd();
-      return;
-    }
-
-    // 计算新顺序
-    const currentOrder = projects.map(p => p.id);
-    const fromIndex = currentOrder.indexOf(dragItemId);
-    const toIndex = currentOrder.indexOf(targetId);
-
-    if (fromIndex === -1 || toIndex === -1) {
-      handleDragEnd();
-      return;
-    }
-
-    // 重新排序数组
-    const newOrder = [...currentOrder];
-    newOrder.splice(fromIndex, 1);
-    newOrder.splice(toIndex, 0, dragItemId);
-
-    handleDragEnd();
-
-    try {
-      await ProjectApi.reorder(newOrder);
-      // 重新加载项目列表以反映新顺序
-      await loadProjects();
-      toast.success("项目顺序已更新");
-    } catch (e) {
-      toast.error("更新顺序失败");
-      console.error(e);
-    }
-  };
-
-  // 放置任务
-  const handleDropTask = async (targetId: number, projectId: number) => {
-    if (!dragItemId || dragType !== "task" || dragItemId === targetId) {
-      handleDragEnd();
-      return;
-    }
-
-    const tasks = tasksByProject[projectId] || [];
-    const currentOrder = tasks.map(t => t.id);
-    const fromIndex = currentOrder.indexOf(dragItemId);
-    const toIndex = currentOrder.indexOf(targetId);
-
-    if (fromIndex === -1 || toIndex === -1) {
-      handleDragEnd();
-      return;
-    }
-
-    // 重新排序数组
-    const newOrder = [...currentOrder];
-    newOrder.splice(fromIndex, 1);
-    newOrder.splice(toIndex, 0, dragItemId);
-
-    handleDragEnd();
-
-    try {
-      await TaskApi.reorder(newOrder);
-      // 重新加载任务列表以反映新顺序
-      await loadTasks(projectId);
-      toast.success("任务顺序已更新");
-    } catch (e) {
-      toast.error("更新顺序失败");
-      console.error(e);
-    }
-  };
 
   // dnd-kit 项目排序处理
   const handleProjectsReorder = async (newOrder: number[]) => {
