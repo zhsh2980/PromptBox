@@ -783,7 +783,7 @@ function App() {
 
               {/* 新建任务输入框 */}
               {addingTaskForProject !== null && (
-                <div className={`ml-6 border-l px-3 py-2 ${styles.sidebarBorder}`}>
+                <div className="ml-6 px-3 py-2">
                   <div className="flex gap-1">
                     <input
                       type="text"

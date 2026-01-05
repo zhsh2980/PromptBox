@@ -340,7 +340,7 @@ export function SortableProjectItem({
 
             {/* 任务列表 */}
             {isExpanded && tasks.length > 0 && (
-                <div className={`ml-6 border-l ${styles.sidebarBorder}`}>
+                <div className="ml-6">
                     <DndContext
                         sensors={sensors}
                         collisionDetection={closestCenter}
