@@ -16,4 +16,7 @@ export const TaskApi = {
 
     /** 删除任务 */
     remove: (id: number) => invoke<void>("delete_task", { id }),
+
+    /** 重新排序任务 */
+    reorder: (taskIds: number[]) => invoke<void>("reorder_tasks", { taskIds }),
 };

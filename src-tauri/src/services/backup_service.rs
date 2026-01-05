@@ -55,6 +55,7 @@ pub fn export_to_file(conn: &Connection, path: &str) -> Result<(), AppError> {
                 ProjectDto {
                     id: row.get(0)?,
                     name: row.get(1)?,
+                    sort_order: 0,
                     created_at: row.get(2)?,
                     updated_at: row.get(3)?,
                 },
@@ -80,6 +81,7 @@ pub fn export_to_file(conn: &Connection, path: &str) -> Result<(), AppError> {
                         project_id,
                         name: row.get(1)?,
                         description: row.get(2)?,
+                        sort_order: 0,
                         created_at: row.get(3)?,
                         updated_at: row.get(4)?,
                     },

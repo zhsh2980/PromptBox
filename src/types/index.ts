@@ -4,6 +4,7 @@
 export interface ProjectDto {
     id: number;
     name: string;
+    sort_order: number;
     created_at: string;
     updated_at?: string | null;
 }
@@ -14,6 +15,7 @@ export interface TaskDto {
     project_id: number;
     name: string;
     description?: string | null;
+    sort_order: number;
     created_at: string;
     updated_at?: string | null;
 }

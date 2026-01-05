@@ -47,3 +47,14 @@ pub fn delete_project(id: i64, db: State<DbState>) -> Result<(), ApiError> {
 
     project_repository::delete_project(&conn, id).map_err(Into::into)
 }
+
+/// 重新排序项目
+#[tauri::command]
+pub fn reorder_projects(project_ids: Vec<i64>, db: State<DbState>) -> Result<(), ApiError> {
+    let conn = db.0.lock().map_err(|e| ApiError {
+        code: "LOCK_ERROR".to_string(),
+        message: format!("获取数据库锁失败: {}", e),
+    })?;
+
+    project_repository::reorder_projects(&conn, project_ids).map_err(Into::into)
+}

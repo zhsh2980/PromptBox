@@ -14,4 +14,7 @@ export const ProjectApi = {
 
     /** 删除项目 */
     remove: (id: number) => invoke<void>("delete_project", { id }),
+
+    /** 重新排序项目 */
+    reorder: (projectIds: number[]) => invoke<void>("reorder_projects", { projectIds }),
 };

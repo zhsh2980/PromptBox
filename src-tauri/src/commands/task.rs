@@ -92,3 +92,22 @@ pub fn delete_task(id: i64, db: State<DbState>) -> Result<(), ApiError> {
         e.into()
     })
 }
+
+/// 重新排序任务
+#[tauri::command]
+pub fn reorder_tasks(task_ids: Vec<i64>, db: State<DbState>) -> Result<(), ApiError> {
+    info!("reorder_tasks 调用: task_ids={:?}", task_ids);
+    
+    let conn = db.0.lock().map_err(|e| {
+        error!("获取数据库锁失败: {}", e);
+        ApiError {
+            code: "LOCK_ERROR".to_string(),
+            message: format!("获取数据库锁失败: {}", e),
+        }
+    })?;
+
+    task_repository::reorder_tasks(&conn, task_ids).map_err(|e| {
+        error!("reorder_tasks 错误: {:?}", e);
+        e.into()
+    })
+}

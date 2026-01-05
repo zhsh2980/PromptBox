@@ -6,8 +6,8 @@ use rusqlite::{params, Connection};
 /// 获取项目下的所有任务
 pub fn list_tasks_by_project(conn: &Connection, project_id: i64) -> Result<Vec<TaskDto>, AppError> {
     let mut stmt = conn.prepare(
-        "SELECT id, project_id, name, description, created_at, updated_at 
-         FROM tasks WHERE project_id = ?1 ORDER BY created_at DESC",
+        "SELECT id, project_id, name, description, sort_order, created_at, updated_at 
+         FROM tasks WHERE project_id = ?1 ORDER BY sort_order ASC",
     )?;
 
     let tasks = stmt
@@ -17,8 +17,9 @@ pub fn list_tasks_by_project(conn: &Connection, project_id: i64) -> Result<Vec<T
                 project_id: row.get(1)?,
                 name: row.get(2)?,
                 description: row.get(3)?,
-                created_at: row.get(4)?,
-                updated_at: row.get(5)?,
+                sort_order: row.get(4)?,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -38,10 +39,20 @@ pub fn create_task(
     }
 
     let now = Utc::now().to_rfc3339();
+    
+    // 获取该项目下最大 sort_order 并加 1
+    let max_sort_order: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(sort_order), 0) FROM tasks WHERE project_id = ?1", 
+            params![project_id], 
+            |row| row.get(0)
+        )
+        .unwrap_or(0);
+    let sort_order = max_sort_order + 1;
 
     conn.execute(
-        "INSERT INTO tasks (project_id, name, description, created_at) VALUES (?1, ?2, ?3, ?4)",
-        params![project_id, name, description, now],
+        "INSERT INTO tasks (project_id, name, description, sort_order, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![project_id, name, description, sort_order, now],
     )?;
 
     let id = conn.last_insert_rowid();
@@ -51,6 +62,7 @@ pub fn create_task(
         project_id,
         name: name.to_string(),
         description: description.map(|s| s.to_string()),
+        sort_order,
         created_at: now,
         updated_at: None,
     })
@@ -65,7 +77,7 @@ pub fn update_task(
 ) -> Result<(), AppError> {
     // 获取当前任务
     let current: TaskDto = conn.query_row(
-        "SELECT id, project_id, name, description, created_at, updated_at FROM tasks WHERE id = ?1",
+        "SELECT id, project_id, name, description, sort_order, created_at, updated_at FROM tasks WHERE id = ?1",
         params![id],
         |row| {
             Ok(TaskDto {
@@ -73,8 +85,9 @@ pub fn update_task(
                 project_id: row.get(1)?,
                 name: row.get(2)?,
                 description: row.get(3)?,
-                created_at: row.get(4)?,
-                updated_at: row.get(5)?,
+                sort_order: row.get(4)?,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
             })
         },
     ).map_err(|_| AppError::NotFound(format!("任务 {} 不存在", id)))?;
@@ -110,7 +123,7 @@ pub fn delete_task(conn: &Connection, id: i64) -> Result<(), AppError> {
 /// 获取单个任务
 pub fn get_task(conn: &Connection, id: i64) -> Result<TaskDto, AppError> {
     let task = conn.query_row(
-        "SELECT id, project_id, name, description, created_at, updated_at FROM tasks WHERE id = ?1",
+        "SELECT id, project_id, name, description, sort_order, created_at, updated_at FROM tasks WHERE id = ?1",
         params![id],
         |row| {
             Ok(TaskDto {
@@ -118,11 +131,23 @@ pub fn get_task(conn: &Connection, id: i64) -> Result<TaskDto, AppError> {
                 project_id: row.get(1)?,
                 name: row.get(2)?,
                 description: row.get(3)?,
-                created_at: row.get(4)?,
-                updated_at: row.get(5)?,
+                sort_order: row.get(4)?,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
             })
         },
     ).map_err(|_| AppError::NotFound(format!("任务 {} 不存在", id)))?;
 
     Ok(task)
+}
+
+/// 重新排序任务
+pub fn reorder_tasks(conn: &Connection, task_ids: Vec<i64>) -> Result<(), AppError> {
+    for (index, id) in task_ids.iter().enumerate() {
+        conn.execute(
+            "UPDATE tasks SET sort_order = ?1 WHERE id = ?2",
+            params![index as i64, id],
+        )?;
+    }
+    Ok(())
 }

@@ -6,7 +6,7 @@ use rusqlite::{params, Connection};
 /// 获取所有项目
 pub fn list_projects(conn: &Connection) -> Result<Vec<ProjectDto>, AppError> {
     let mut stmt = conn.prepare(
-        "SELECT id, name, created_at, updated_at FROM projects ORDER BY created_at DESC",
+        "SELECT id, name, sort_order, created_at, updated_at FROM projects ORDER BY sort_order ASC",
     )?;
 
     let projects = stmt
@@ -14,8 +14,9 @@ pub fn list_projects(conn: &Connection) -> Result<Vec<ProjectDto>, AppError> {
             Ok(ProjectDto {
                 id: row.get(0)?,
                 name: row.get(1)?,
-                created_at: row.get(2)?,
-                updated_at: row.get(3)?,
+                sort_order: row.get(2)?,
+                created_at: row.get(3)?,
+                updated_at: row.get(4)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -30,10 +31,16 @@ pub fn create_project(conn: &Connection, name: &str) -> Result<ProjectDto, AppEr
     }
 
     let now = Utc::now().to_rfc3339();
+    
+    // 获取最大 sort_order 并加 1
+    let max_sort_order: i64 = conn
+        .query_row("SELECT COALESCE(MAX(sort_order), 0) FROM projects", [], |row| row.get(0))
+        .unwrap_or(0);
+    let sort_order = max_sort_order + 1;
 
     conn.execute(
-        "INSERT INTO projects (name, created_at) VALUES (?1, ?2)",
-        params![name, now],
+        "INSERT INTO projects (name, sort_order, created_at) VALUES (?1, ?2, ?3)",
+        params![name, sort_order, now],
     )?;
 
     let id = conn.last_insert_rowid();
@@ -41,6 +48,7 @@ pub fn create_project(conn: &Connection, name: &str) -> Result<ProjectDto, AppEr
     Ok(ProjectDto {
         id,
         name: name.to_string(),
+        sort_order,
         created_at: now,
         updated_at: None,
     })
@@ -80,17 +88,29 @@ pub fn delete_project(conn: &Connection, id: i64) -> Result<(), AppError> {
 /// 获取单个项目
 pub fn get_project(conn: &Connection, id: i64) -> Result<ProjectDto, AppError> {
     let project = conn.query_row(
-        "SELECT id, name, created_at, updated_at FROM projects WHERE id = ?1",
+        "SELECT id, name, sort_order, created_at, updated_at FROM projects WHERE id = ?1",
         params![id],
         |row| {
             Ok(ProjectDto {
                 id: row.get(0)?,
                 name: row.get(1)?,
-                created_at: row.get(2)?,
-                updated_at: row.get(3)?,
+                sort_order: row.get(2)?,
+                created_at: row.get(3)?,
+                updated_at: row.get(4)?,
             })
         },
     )?;
 
     Ok(project)
+}
+
+/// 重新排序项目
+pub fn reorder_projects(conn: &Connection, project_ids: Vec<i64>) -> Result<(), AppError> {
+    for (index, id) in project_ids.iter().enumerate() {
+        conn.execute(
+            "UPDATE projects SET sort_order = ?1 WHERE id = ?2",
+            params![index as i64, id],
+        )?;
+    }
+    Ok(())
 }

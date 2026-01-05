@@ -7,6 +7,7 @@ pub struct TaskDto {
     pub project_id: i64,
     pub name: String,
     pub description: Option<String>,
+    pub sort_order: i64,
     pub created_at: String,
     pub updated_at: Option<String>,
 }

@@ -38,11 +38,18 @@ pub fn init_db(conn: &Connection) -> Result<(), AppError> {
         CREATE TABLE IF NOT EXISTS projects (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             name        TEXT NOT NULL,
+            sort_order  INTEGER NOT NULL DEFAULT 0,
             created_at  TEXT NOT NULL,
             updated_at  TEXT
         );
         "#,
     )?;
+
+    // 迁移：为已有的 projects 表添加 sort_order 列（如果不存在）
+    let _ = conn.execute("ALTER TABLE projects ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0", []);
+    
+    // 初始化已有记录的 sort_order（使用 id 作为初始顺序）
+    conn.execute("UPDATE projects SET sort_order = id WHERE sort_order = 0", [])?;
 
     // 创建 tasks 表
     conn.execute_batch(
@@ -52,6 +59,7 @@ pub fn init_db(conn: &Connection) -> Result<(), AppError> {
             project_id  INTEGER NOT NULL,
             name        TEXT NOT NULL,
             description TEXT,
+            sort_order  INTEGER NOT NULL DEFAULT 0,
             created_at  TEXT NOT NULL,
             updated_at  TEXT,
             FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
@@ -60,6 +68,12 @@ pub fn init_db(conn: &Connection) -> Result<(), AppError> {
         CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks (project_id);
         "#,
     )?;
+
+    // 迁移：为已有的 tasks 表添加 sort_order 列（如果不存在）
+    let _ = conn.execute("ALTER TABLE tasks ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0", []);
+    
+    // 初始化已有记录的 sort_order（使用 id 作为初始顺序）
+    conn.execute("UPDATE tasks SET sort_order = id WHERE sort_order = 0", [])?;
 
     // 创建 prompt_entries 表
     conn.execute_batch(

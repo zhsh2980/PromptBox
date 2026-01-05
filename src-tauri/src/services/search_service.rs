@@ -96,40 +96,38 @@ fn generate_snippet(content: &str, title: &Option<String>, keyword: &str) -> Str
     let content_lower = content.to_lowercase();
     let keyword_lower = keyword.to_lowercase();
 
-    if let Some(pos) = content_lower.find(&keyword_lower) {
-        // 提取关键词前后各 50 个字符
-        let start = pos.saturating_sub(50);
-        let end = (pos + keyword.len() + 50).min(content.len());
-
-        // 确保不会在字符边界切断
-        let snippet_start = content[..start]
-            .char_indices()
-            .last()
-            .map(|(i, _)| i)
-            .unwrap_or(0);
-        let snippet_end = content[end..]
-            .char_indices()
-            .next()
-            .map(|(i, _)| end + i)
-            .unwrap_or(content.len());
-
-        let mut snippet = content[snippet_start..snippet_end].to_string();
-
-        if snippet_start > 0 {
-            snippet = format!("...{}", snippet);
+    if let Some(byte_pos) = content_lower.find(&keyword_lower) {
+        // 将字节位置转换为字符位置
+        let char_pos = content[..byte_pos].chars().count();
+        let total_chars = content.chars().count();
+        
+        // 计算安全的字符范围（前后各 50 个字符）
+        let start_char = char_pos.saturating_sub(50);
+        let end_char = (char_pos + keyword.chars().count() + 50).min(total_chars);
+        
+        // 使用字符迭代器安全地提取子串
+        let snippet: String = content
+            .chars()
+            .skip(start_char)
+            .take(end_char - start_char)
+            .collect();
+        
+        let mut result = snippet;
+        if start_char > 0 {
+            result = format!("...{}", result);
         }
-        if snippet_end < content.len() {
-            snippet = format!("{}...", snippet);
+        if end_char < total_chars {
+            result = format!("{}...", result);
         }
-
-        snippet
+        
+        result
     } else {
         // 如果找不到，返回前 100 个字符
-        let end = content.char_indices().nth(100).map(|(i, _)| i).unwrap_or(content.len());
-        if end < content.len() {
-            format!("{}...", &content[..end])
+        let snippet: String = content.chars().take(100).collect();
+        if content.chars().count() > 100 {
+            format!("{}...", snippet)
         } else {
-            content.to_string()
+            snippet
         }
     }
 }

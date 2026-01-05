@@ -59,11 +59,13 @@ pub fn run() {
             create_project,
             update_project,
             delete_project,
+            reorder_projects,
             // 任务命令
             list_tasks,
             create_task,
             update_task,
             delete_task,
+            reorder_tasks,
             // 提示词命令
             list_prompt_entries,
             create_prompt_entry,

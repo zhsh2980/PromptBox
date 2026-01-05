@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   FolderKanban,
   ListTodo,
@@ -21,6 +21,7 @@ import {
 import { ProjectApi, TaskApi, PromptApi } from "./tauri-api";
 import { useAppStore } from "./store";
 import { GlobalSearch, SettingsDialog, ToastContainer, toast } from "./components";
+import { SortableProjectList } from "./components/SortableProjectList";
 import { ask } from "@tauri-apps/plugin-dialog";
 import type { SearchResultDto } from "./types";
 
@@ -94,8 +95,15 @@ function App() {
   const PROMPT_LIST_MAX = 500;
   const PROMPT_LIST_DEFAULT = 320;
 
-  // 拖拽状态
+  // 列宽拖拽状态
   const [resizing, setResizing] = useState<"sidebar" | "promptList" | null>(null);
+
+  // 项目/任务拖拽排序状态
+  const [dragType, setDragType] = useState<"project" | "task" | null>(null);
+  const [dragItemId, setDragItemId] = useState<number | null>(null);
+  const [dragOverId, setDragOverId] = useState<number | null>(null);
+  const [isDraggable, setIsDraggable] = useState(false);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 处理拖拽
   const handleMouseDown = (column: "sidebar" | "promptList") => (e: React.MouseEvent) => {
@@ -436,6 +444,148 @@ function App() {
     });
   }
 
+  // 长按开始 - 启动计时器
+  const handleLongPressStart = (type: "project" | "task", id: number) => (e: React.MouseEvent | React.TouchEvent) => {
+    // 阻止右键菜单等
+    if ('button' in e && e.button !== 0) return;
+
+    longPressTimerRef.current = setTimeout(() => {
+      setDragType(type);
+      setDragItemId(id);
+      setIsDraggable(true);
+    }, 300);
+  };
+
+  // 长按取消 - 清除计时器
+  const handleLongPressEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  // 拖拽开始 - 简化版本，移除 isDraggable 检查
+  const handleDragStart = (type: "project" | "task", id: number) => (e: React.DragEvent) => {
+    setDragType(type);
+    setDragItemId(id);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", `${type}:${id}`);
+  };
+
+  // 拖拽结束
+  const handleDragEnd = () => {
+    setDragType(null);
+    setDragItemId(null);
+    setDragOverId(null);
+    setIsDraggable(false);
+  };
+
+  // 拖拽经过
+  const handleDragOver = (id: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverId(id);
+  };
+
+  // 拖拽离开
+  const handleDragLeave = () => {
+    setDragOverId(null);
+  };
+
+  // 放置项目
+  const handleDropProject = async (targetId: number) => {
+    if (!dragItemId || dragType !== "project" || dragItemId === targetId) {
+      handleDragEnd();
+      return;
+    }
+
+    // 计算新顺序
+    const currentOrder = projects.map(p => p.id);
+    const fromIndex = currentOrder.indexOf(dragItemId);
+    const toIndex = currentOrder.indexOf(targetId);
+
+    if (fromIndex === -1 || toIndex === -1) {
+      handleDragEnd();
+      return;
+    }
+
+    // 重新排序数组
+    const newOrder = [...currentOrder];
+    newOrder.splice(fromIndex, 1);
+    newOrder.splice(toIndex, 0, dragItemId);
+
+    handleDragEnd();
+
+    try {
+      await ProjectApi.reorder(newOrder);
+      // 重新加载项目列表以反映新顺序
+      await loadProjects();
+      toast.success("项目顺序已更新");
+    } catch (e) {
+      toast.error("更新顺序失败");
+      console.error(e);
+    }
+  };
+
+  // 放置任务
+  const handleDropTask = async (targetId: number, projectId: number) => {
+    if (!dragItemId || dragType !== "task" || dragItemId === targetId) {
+      handleDragEnd();
+      return;
+    }
+
+    const tasks = tasksByProject[projectId] || [];
+    const currentOrder = tasks.map(t => t.id);
+    const fromIndex = currentOrder.indexOf(dragItemId);
+    const toIndex = currentOrder.indexOf(targetId);
+
+    if (fromIndex === -1 || toIndex === -1) {
+      handleDragEnd();
+      return;
+    }
+
+    // 重新排序数组
+    const newOrder = [...currentOrder];
+    newOrder.splice(fromIndex, 1);
+    newOrder.splice(toIndex, 0, dragItemId);
+
+    handleDragEnd();
+
+    try {
+      await TaskApi.reorder(newOrder);
+      // 重新加载任务列表以反映新顺序
+      await loadTasks(projectId);
+      toast.success("任务顺序已更新");
+    } catch (e) {
+      toast.error("更新顺序失败");
+      console.error(e);
+    }
+  };
+
+  // dnd-kit 项目排序处理
+  const handleProjectsReorder = async (newOrder: number[]) => {
+    try {
+      await ProjectApi.reorder(newOrder);
+      await loadProjects();
+      toast.success("项目顺序已更新");
+    } catch (e) {
+      toast.error("更新顺序失败");
+      console.error(e);
+    }
+  };
+
+  // dnd-kit 任务排序处理
+  const handleTasksReorder = async (projectId: number, newOrder: number[]) => {
+    try {
+      await TaskApi.reorder(newOrder);
+      await loadTasks(projectId);
+      toast.success("任务顺序已更新");
+    } catch (e) {
+      toast.error("更新顺序失败");
+      console.error(e);
+    }
+  };
+
   const currentTasks = selectedProjectId ? tasksByProject[selectedProjectId] || [] : [];
   const currentPrompts = selectedTaskId ? promptEntriesByTask[selectedTaskId] || [] : [];
 
@@ -572,220 +722,107 @@ function App() {
               </div>
             </div>
 
-            {/* 项目/任务树形列表 */}
+            {/* 项目/任务树形列表 - 使用 dnd-kit */}
             <div className="flex-1 overflow-y-auto">
-              {projects.map((project) => (
-                <div key={project.id}>
-                  {/* 项目项 */}
-                  <div
-                    className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors group relative ${selectedProjectId === project.id ? styles.listItemActive : styles.listItem
-                      }`}
-                  >
-                    <button
-                      onClick={() => toggleProjectExpand(project.id)}
-                      className={`p-0.5 rounded flex-shrink-0 ${styles.buttonHover}`}
-                    >
-                      {expandedProjects.has(project.id) ? (
-                        <ChevronDown className={`w-4 h-4 ${styles.iconMuted}`} />
-                      ) : (
-                        <ChevronRight className={`w-4 h-4 ${styles.iconMuted}`} />
-                      )}
-                    </button>
-                    <FolderKanban className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                    {editingProjectId === project.id ? (
-                      <input
-                        type="text"
-                        value={editingProjectName}
-                        onChange={(e) => setEditingProjectName(e.target.value)}
-                        className={`flex-1 px-2 py-0.5 rounded text-sm ${styles.input}`}
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleUpdateProject(project.id);
-                          }
-                          if (e.key === "Escape") setEditingProjectId(null);
-                        }}
-                        onBlur={() => handleUpdateProject(project.id)}
-                      />
-                    ) : (
-                      <span
-                        className="flex-1 text-sm truncate"
-                        onClick={() => {
-                          selectProject(project.id);
-                          setExpandedProjects((prev) => {
-                            const next = new Set([...prev, project.id]);
-                            localStorage.setItem("expandedProjects", JSON.stringify([...next]));
-                            return next;
-                          });
-                        }}
-                      >
-                        {project.name}
-                      </span>
-                    )}
-                    {/* 悬停时显示的按钮 - 使用绝对定位和渐变遮罩 */}
-                    <div
-                      className={`absolute right-0 top-0 bottom-0 flex items-center gap-0.5 pr-2 pl-6 opacity-0 group-hover:opacity-100 transition-opacity ${isDark
-                        ? "bg-gradient-to-l from-zinc-800 via-zinc-800 to-transparent"
-                        : selectedProjectId === project.id
-                          ? "bg-gradient-to-l from-blue-100 via-blue-100 to-transparent"
-                          : "bg-gradient-to-l from-white via-white to-transparent"
-                        }`}
-                    >
-                      {/* 新建任务按钮 */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          selectProject(project.id);
-                          setExpandedProjects((prev) => {
-                            const next = new Set([...prev, project.id]);
-                            localStorage.setItem("expandedProjects", JSON.stringify([...next]));
-                            return next;
-                          });
-                          setAddingTaskForProject(project.id);
-                          setNewTaskName("");
-                        }}
-                        className={`p-1 rounded ${styles.buttonHover}`}
-                        title="新建任务"
-                      >
-                        <Plus className="w-3 h-3 text-green-500" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingProjectId(project.id);
-                          setEditingProjectName(project.name);
-                        }}
-                        className={`p-1 rounded ${styles.buttonHover}`}
-                        title="编辑"
-                      >
-                        <Edit3 className={`w-3 h-3 ${styles.icon}`} />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteProject(project.id);
-                        }}
-                        className={`p-1 rounded ${styles.buttonHover}`}
-                        title="删除"
-                      >
-                        <Trash2 className="w-3 h-3 text-red-500" />
-                      </button>
-                    </div>
-                  </div>
+              <SortableProjectList
+                projects={projects}
+                tasksByProject={tasksByProject}
+                selectedProjectId={selectedProjectId}
+                selectedTaskId={selectedTaskId}
+                expandedProjects={expandedProjects}
+                editingProjectId={editingProjectId}
+                editingProjectName={editingProjectName}
+                editingTaskId={editingTaskId}
+                editingTaskName={editingTaskName}
+                styles={styles}
+                isDark={isDark}
+                onProjectsReorder={handleProjectsReorder}
+                onTasksReorder={handleTasksReorder}
+                onToggleExpand={(projectId) => {
+                  toggleProjectExpand(projectId);
+                }}
+                onSelectProject={(projectId) => {
+                  selectProject(projectId);
+                  setExpandedProjects((prev) => {
+                    const next = new Set([...prev, projectId]);
+                    localStorage.setItem("expandedProjects", JSON.stringify([...next]));
+                    return next;
+                  });
+                }}
+                onSelectTask={(projectId, taskId) => {
+                  selectProject(projectId);
+                  selectTask(taskId);
+                }}
+                onStartEditProject={(projectId, name) => {
+                  setEditingProjectId(projectId);
+                  setEditingProjectName(name);
+                }}
+                onEditProjectNameChange={setEditingProjectName}
+                onSaveProjectEdit={handleUpdateProject}
+                onCancelProjectEdit={() => setEditingProjectId(null)}
+                onDeleteProject={handleDeleteProject}
+                onAddTask={(projectId) => {
+                  selectProject(projectId);
+                  setExpandedProjects((prev) => {
+                    const next = new Set([...prev, projectId]);
+                    localStorage.setItem("expandedProjects", JSON.stringify([...next]));
+                    return next;
+                  });
+                  setAddingTaskForProject(projectId);
+                  setNewTaskName("");
+                }}
+                onStartEditTask={(taskId, name) => {
+                  setEditingTaskId(taskId);
+                  setEditingTaskName(name);
+                }}
+                onEditTaskNameChange={setEditingTaskName}
+                onSaveTaskEdit={handleUpdateTask}
+                onCancelTaskEdit={() => setEditingTaskId(null)}
+                onDeleteTask={handleDeleteTask}
+              />
 
-                  {/* 任务列表（展开时显示） */}
-                  {expandedProjects.has(project.id) && (
-                    <div className={`ml-4 border-l ${styles.sidebarBorder}`}>
-                      {(tasksByProject[project.id] || []).map((task) => (
-                        <div
-                          key={task.id}
-                          onClick={() => {
-                            selectProject(project.id);
-                            selectTask(task.id);
-                          }}
-                          className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-colors group relative ${selectedTaskId === task.id ? styles.listItemActiveTask : styles.listItem
-                            }`}
-                        >
-                          <ListTodo className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                          {editingTaskId === task.id ? (
-                            <input
-                              type="text"
-                              value={editingTaskName}
-                              onChange={(e) => setEditingTaskName(e.target.value)}
-                              className={`flex-1 px-2 py-0.5 rounded text-xs ${styles.input}`}
-                              autoFocus
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  handleUpdateTask(task.id);
-                                }
-                                if (e.key === "Escape") setEditingTaskId(null);
-                              }}
-                              onBlur={() => handleUpdateTask(task.id)}
-                            />
-                          ) : (
-                            <span className={`flex-1 text-sm truncate ${styles.textSecondary}`}>{task.name}</span>
-                          )}
-                          {/* 悬停时显示的按钮 - 使用绝对定位和渐变遮罩 */}
-                          <div
-                            className={`absolute right-0 top-0 bottom-0 flex items-center gap-0.5 pr-2 pl-4 opacity-0 group-hover:opacity-100 transition-opacity ${isDark
-                              ? "bg-gradient-to-l from-zinc-800 via-zinc-800 to-transparent"
-                              : selectedTaskId === task.id
-                                ? "bg-gradient-to-l from-green-100 via-green-100 to-transparent"
-                                : "bg-gradient-to-l from-white via-white to-transparent"
-                              }`}
-                          >
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingTaskId(task.id);
-                                setEditingTaskName(task.name);
-                              }}
-                              className={`p-0.5 rounded ${styles.buttonHover}`}
-                              title="编辑"
-                            >
-                              <Edit3 className={`w-3 h-3 ${styles.icon}`} />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteTask(task.id);
-                              }}
-                              className={`p-0.5 rounded ${styles.buttonHover}`}
-                              title="删除"
-                            >
-                              <Trash2 className="w-3 h-3 text-red-500" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                      {/* 新建任务输入框 */}
-                      {addingTaskForProject === project.id && (
-                        <div className="px-3 py-2">
-                          <div className="flex gap-1">
-                            <input
-                              type="text"
-                              value={newTaskName}
-                              onChange={(e) => setNewTaskName(e.target.value)}
-                              placeholder="输入任务名称..."
-                              className={`flex-1 px-2 py-1 border rounded text-xs focus:outline-none focus:border-green-500 ${styles.input}`}
-                              autoFocus
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" && newTaskName.trim()) {
-                                  handleCreateTask();
-                                  setAddingTaskForProject(null);
-                                }
-                                if (e.key === "Escape") {
-                                  setAddingTaskForProject(null);
-                                  setNewTaskName("");
-                                }
-                              }}
-                              onBlur={() => {
-                                if (!newTaskName.trim()) {
-                                  setAddingTaskForProject(null);
-                                }
-                              }}
-                            />
-                            <button
-                              onClick={() => {
-                                if (newTaskName.trim()) {
-                                  handleCreateTask();
-                                  setAddingTaskForProject(null);
-                                }
-                              }}
-                              disabled={loading || !newTaskName.trim()}
-                              className="p-1 bg-green-600 hover:bg-green-500 rounded transition-colors disabled:opacity-50 text-white"
-                            >
-                              <Plus className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+              {/* 新建任务输入框 */}
+              {addingTaskForProject !== null && (
+                <div className={`ml-6 border-l px-3 py-2 ${styles.sidebarBorder}`}>
+                  <div className="flex gap-1">
+                    <input
+                      type="text"
+                      value={newTaskName}
+                      onChange={(e) => setNewTaskName(e.target.value)}
+                      placeholder="输入任务名称..."
+                      className={`flex-1 px-2 py-1 border rounded text-xs focus:outline-none focus:border-green-500 ${styles.input}`}
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && newTaskName.trim()) {
+                          handleCreateTask();
+                          setAddingTaskForProject(null);
+                        }
+                        if (e.key === "Escape") {
+                          setAddingTaskForProject(null);
+                          setNewTaskName("");
+                        }
+                      }}
+                      onBlur={() => {
+                        if (!newTaskName.trim()) {
+                          setAddingTaskForProject(null);
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        if (newTaskName.trim()) {
+                          handleCreateTask();
+                          setAddingTaskForProject(null);
+                        }
+                      }}
+                      disabled={loading || !newTaskName.trim()}
+                      className="p-1 bg-green-600 hover:bg-green-500 rounded transition-colors disabled:opacity-50 text-white"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}
