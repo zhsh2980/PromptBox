@@ -48,3 +48,29 @@ export interface ApiError {
     code: string;
     message: string;
 }
+
+/** SVN 配置 */
+export interface SvnConfig {
+    enabled: boolean;
+    repository_url: string;
+    local_path?: string | null;
+}
+
+/** SVN 文件夹 */
+export interface SvnFolder {
+    name: string;
+    path: string;
+    full_path: string;
+}
+
+/** SVN 提示词 */
+export interface SvnPrompt {
+    id: string;
+    folder_path: string;
+    title: string;
+    content: string;
+    tags: string[];
+    model?: string | null;
+    modified_at: string;
+    file_path: string;
+}

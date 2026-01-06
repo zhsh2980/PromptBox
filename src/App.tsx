@@ -18,10 +18,10 @@ import {
 } from "lucide-react";
 import { ProjectApi, TaskApi, PromptApi } from "./tauri-api";
 import { useAppStore } from "./store";
-import { GlobalSearch, SettingsDialog, ToastContainer, toast } from "./components";
+import { GlobalSearch, SettingsDialog, SvnProjectView, ToastContainer, toast } from "./components";
 import { SortableProjectList } from "./components/SortableProjectList";
 import { ask } from "@tauri-apps/plugin-dialog";
-import type { SearchResultDto } from "./types";
+import type { SearchResultDto, SvnPrompt } from "./types";
 
 function App() {
   const {
@@ -46,6 +46,9 @@ function App() {
     removePrompt,
     selectedPromptEntryId,
     selectPrompt,
+    // SVN 相关
+    svnPromptsByFolder,
+    selectedSvnPrompt,
   } = useAppStore();
 
   const [newProjectName, setNewProjectName] = useState("");
@@ -597,6 +600,9 @@ function App() {
 
             {/* 项目/任务树形列表 - 使用 dnd-kit */}
             <div className="flex-1 overflow-y-auto">
+              {/* SVN 共享 Prompts 视图 - 固定在顶部 */}
+              <SvnProjectView isDark={isDark} styles={styles} />
+
               <SortableProjectList
                 projects={projects}
                 tasksByProject={tasksByProject}
@@ -847,7 +853,89 @@ function App() {
 
             {/* 提示词编辑区（类似笔记软件，直接可编辑） */}
             <div className="flex-1 overflow-y-auto p-6">
-              {selectedPrompt ? (
+              {(() => {
+                // 查找当前选中的 SVN 提示词
+                let selectedSvnPromptObj: SvnPrompt | null = null;
+                if (selectedSvnPrompt) {
+                  for (const prompts of Object.values(svnPromptsByFolder)) {
+                    const found = prompts.find((p) => p.id === selectedSvnPrompt);
+                    if (found) {
+                      selectedSvnPromptObj = found;
+                      break;
+                    }
+                  }
+                }
+
+                // 显示 SVN 提示词（只读模式）
+                if (selectedSvnPromptObj) {
+                  return (
+                    <div className="max-w-4xl mx-auto space-y-4">
+                      {/* 顶部工具栏 */}
+                      <div className="flex items-center justify-between">
+                        <div className={`flex items-center gap-2 text-xs ${styles.textMuted}`}>
+                          <span className="px-2 py-1 bg-blue-600/20 text-blue-400 rounded text-xs border border-blue-600/30">
+                            共享 (只读)
+                          </span>
+                          {selectedSvnPromptObj.modified_at && (
+                            <span>{selectedSvnPromptObj.modified_at}</span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleCopyPrompt(selectedSvnPromptObj!.content)}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm transition-colors text-white"
+                          title="复制内容"
+                        >
+                          <Copy className="w-4 h-4" />
+                          复制
+                        </button>
+                      </div>
+
+                      {/* 标题 */}
+                      <div className="w-full text-xl font-semibold">
+                        {selectedSvnPromptObj.title}
+                      </div>
+
+                      {/* 元数据行 */}
+                      {(selectedSvnPromptObj.model || selectedSvnPromptObj.tags.length > 0) && (
+                        <div className="flex gap-3 flex-wrap">
+                          {selectedSvnPromptObj.model && (
+                            <div className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg ${styles.contentArea}`}>
+                              <Bot className={`w-4 h-4 ${styles.iconMuted}`} />
+                              <span className={`text-sm ${styles.textSecondary}`}>
+                                {selectedSvnPromptObj.model}
+                              </span>
+                            </div>
+                          )}
+                          {selectedSvnPromptObj.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className={`px-3 py-1.5 border rounded-lg text-sm ${styles.contentArea}`}
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* 内容显示区（只读） */}
+                      <div
+                        className={`w-full min-h-[400px] p-4 border rounded-lg text-sm font-mono leading-relaxed whitespace-pre-wrap ${styles.contentArea} ${
+                          isDark ? "text-zinc-200" : "text-slate-800"
+                        }`}
+                      >
+                        {selectedSvnPromptObj.content}
+                      </div>
+
+                      {/* 只读提示 */}
+                      <div className="text-xs text-center text-gray-500 dark:text-gray-400">
+                        这是共享提示词，不可编辑。可以复制到本地项目进行修改。
+                      </div>
+                    </div>
+                  );
+                }
+
+                // 显示数据库提示词（可编辑）
+                return selectedPrompt ? (
                 <div className="max-w-4xl mx-auto space-y-4">
                   {/* 顶部工具栏 */}
                   <div className="flex items-center justify-between">
@@ -967,7 +1055,8 @@ function App() {
                   <p className="text-lg">选择或创建一个项目开始</p>
                   <p className="text-sm mt-2">使用左侧导航栏管理您的提示词</p>
                 </div>
-              )}
+              );
+              })()}
             </div>
           </div>
         </div>

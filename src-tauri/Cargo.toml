@@ -28,3 +28,6 @@ chrono = { version = "0.4", features = ["serde"] }
 thiserror = "1"
 log = "0.4"
 simplelog = "0.12"
+yaml-rust = "0.4"
+regex = "1.10"
+walkdir = "2"

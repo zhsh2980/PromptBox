@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { X, Download, Upload, FolderOpen, AlertTriangle, Copy, Check } from "lucide-react";
-import { BackupApi, ProjectApi } from "../tauri-api";
+import { X, Download, Upload, FolderOpen, AlertTriangle, Copy, Check, FolderGit2 } from "lucide-react";
+import { BackupApi, ProjectApi, SvnApi } from "../tauri-api";
 import { useAppStore } from "../store";
 import { save, open } from "@tauri-apps/plugin-dialog";
+import type { SvnConfig } from "../types";
 
 interface SettingsDialogProps {
     isOpen: boolean;
@@ -15,7 +16,10 @@ export function SettingsDialog({ isOpen, onClose, isDark = true }: SettingsDialo
     const [processing, setProcessing] = useState(false);
     const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
     const [copied, setCopied] = useState(false);
-    const { reset, setProjects } = useAppStore();
+    const [svnConfig, setSvnConfigLocal] = useState<SvnConfig>({ enabled: false, repository_url: "" });
+    const [svnTesting, setSvnTesting] = useState(false);
+    const [svnTestResult, setSvnTestResult] = useState<{ success: boolean; message: string } | null>(null);
+    const { reset, setProjects, setSvnConfig: setSvnConfigStore } = useAppStore();
 
     // 主题样式
     const styles = {
@@ -69,8 +73,10 @@ export function SettingsDialog({ isOpen, onClose, isDark = true }: SettingsDialo
     useEffect(() => {
         if (isOpen) {
             loadDbPath();
+            loadSvnConfig();
             setMessage(null);
             setProcessing(false);
+            setSvnTestResult(null);
         }
     }, [isOpen]);
 
@@ -81,6 +87,80 @@ export function SettingsDialog({ isOpen, onClose, isDark = true }: SettingsDialo
         } catch (e) {
             console.error("获取数据库路径失败:", e);
             setDbPath("无法获取路径");
+        }
+    }
+
+    async function loadSvnConfig() {
+        try {
+            const config = await SvnApi.getConfig();
+            setSvnConfigLocal(config);
+        } catch (e) {
+            console.error("加载 SVN 配置失败:", e);
+        }
+    }
+
+    async function handleSvnEnabledChange(enabled: boolean) {
+        const newConfig = { ...svnConfig, enabled };
+        setSvnConfigLocal(newConfig);
+
+        try {
+            await SvnApi.updateConfig(newConfig);
+            setSvnConfigStore(newConfig);
+            setMessage({ type: "success", text: enabled ? "已启用共享Prompts" : "已禁用共享Prompts" });
+        } catch (e: any) {
+            console.error("更新 SVN 配置失败:", e);
+            setMessage({ type: "error", text: `更新失败: ${e.message || e}` });
+        }
+    }
+
+    async function handleSvnUrlChange(url: string) {
+        setSvnConfigLocal({ ...svnConfig, repository_url: url });
+        setSvnTestResult(null);
+    }
+
+    async function handleSvnUrlSave() {
+        try {
+            await SvnApi.updateConfig(svnConfig);
+            setSvnConfigStore(svnConfig);
+            setMessage({ type: "success", text: "SVN 仓库地址已保存" });
+        } catch (e: any) {
+            console.error("保存 SVN 配置失败:", e);
+            setMessage({ type: "error", text: `保存失败: ${e.message || e}` });
+        }
+    }
+
+    async function handleTestSvnConnection() {
+        if (!svnConfig.repository_url) {
+            setSvnTestResult({ success: false, message: "请先输入 SVN 仓库地址" });
+            return;
+        }
+
+        setSvnTesting(true);
+        setSvnTestResult(null);
+
+        try {
+            const isAvailable = await SvnApi.checkAvailable();
+            if (!isAvailable) {
+                setSvnTestResult({
+                    success: false,
+                    message: "SVN 客户端未安装或未添加到系统 PATH",
+                });
+                setSvnTesting(false);
+                return;
+            }
+
+            const result = await SvnApi.testConnection(svnConfig.repository_url);
+            setSvnTestResult({
+                success: result,
+                message: result ? "连接成功！" : "连接失败，请检查仓库地址是否正确",
+            });
+        } catch (e: any) {
+            setSvnTestResult({
+                success: false,
+                message: `测试失败: ${e.message || e}`,
+            });
+        } finally {
+            setSvnTesting(false);
         }
     }
 
@@ -227,6 +307,95 @@ export function SettingsDialog({ isOpen, onClose, isDark = true }: SettingsDialo
                         <p className={styles.hint}>
                             导出为 JSON 文件，可用于备份或迁移到其他设备
                         </p>
+                    </div>
+
+                    {/* SVN 共享 Prompts 配置 */}
+                    <div>
+                        <h3 className={styles.sectionTitle}>
+                            <div className="flex items-center gap-2">
+                                <FolderGit2 className="w-4 h-4" />
+                                <span>共享Prompts (SVN)</span>
+                            </div>
+                        </h3>
+
+                        {/* 启用开关 */}
+                        <div className="flex items-center justify-between mb-3">
+                            <label className="text-sm">启用共享Prompts</label>
+                            <button
+                                onClick={() => handleSvnEnabledChange(!svnConfig.enabled)}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                    svnConfig.enabled ? "bg-blue-600" : isDark ? "bg-zinc-700" : "bg-gray-300"
+                                }`}
+                            >
+                                <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                        svnConfig.enabled ? "translate-x-6" : "translate-x-1"
+                                    }`}
+                                />
+                            </button>
+                        </div>
+
+                        {/* SVN 仓库地址 */}
+                        {svnConfig.enabled && (
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">
+                                        SVN 仓库地址
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={svnConfig.repository_url}
+                                        onChange={(e) => handleSvnUrlChange(e.target.value)}
+                                        onBlur={handleSvnUrlSave}
+                                        placeholder="https://svn.example.com/prompts 或 file:///path/to/svn"
+                                        className={`w-full px-3 py-2 rounded-lg text-sm ${
+                                            isDark
+                                                ? "bg-zinc-900 border border-zinc-700 text-white placeholder-zinc-500"
+                                                : "bg-slate-100 border border-slate-300 text-slate-900 placeholder-slate-400"
+                                        } focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                                    />
+                                </div>
+
+                                <button
+                                    onClick={handleTestSvnConnection}
+                                    disabled={svnTesting || !svnConfig.repository_url}
+                                    className={`w-full px-3 py-2 rounded-lg text-sm transition-colors ${
+                                        isDark
+                                            ? "bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50"
+                                            : "bg-slate-200 hover:bg-slate-300 disabled:opacity-50"
+                                    }`}
+                                >
+                                    {svnTesting ? "测试中..." : "测试连接"}
+                                </button>
+
+                                {/* 测试结果 */}
+                                {svnTestResult && (
+                                    <div
+                                        className={`p-2 rounded-lg text-xs ${
+                                            svnTestResult.success
+                                                ? "bg-green-900/20 border border-green-600/30 text-green-400"
+                                                : "bg-red-900/20 border border-red-600/30 text-red-400"
+                                        }`}
+                                    >
+                                        {svnTestResult.message}
+                                    </div>
+                                )}
+
+                                {/* 提示信息 */}
+                                {!svnConfig.repository_url && (
+                                    <div className="flex items-start gap-2 p-2 bg-blue-900/20 border border-blue-600/30 rounded-lg">
+                                        <AlertTriangle className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5" />
+                                        <p className="text-xs text-blue-400">
+                                            请配置 SVN 仓库地址以使用共享Prompts功能。仓库中应包含提示词文件（.md, .txt, .yaml）。
+                                        </p>
+                                    </div>
+                                )}
+
+                                <p className={styles.hint}>
+                                    共享Prompts 会显示在侧边栏顶部，内容为只读模式。需要安装 SVN 客户端。
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     {/* 警告提示 */}
