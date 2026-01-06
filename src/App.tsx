@@ -15,6 +15,8 @@ import {
   Sun,
   Moon,
   ArrowUpDown,
+  Clock,
+  Tag,
 } from "lucide-react";
 import { ProjectApi, TaskApi, PromptApi } from "./tauri-api";
 import { useAppStore } from "./store";
@@ -870,52 +872,25 @@ function App() {
                 if (selectedSvnPromptObj) {
                   return (
                     <div className="max-w-4xl mx-auto space-y-4">
-                      {/* 顶部工具栏 */}
-                      <div className="flex items-center justify-between">
-                        <div className={`flex items-center gap-2 text-xs ${styles.textMuted}`}>
-                          <span className="px-2 py-1 bg-blue-600/20 text-blue-400 rounded text-xs border border-blue-600/30">
+                      {/* 顶部：标题和复制按钮在同一行 */}
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1 flex items-center gap-2">
+                          <span className="px-2 py-1 bg-blue-600/20 text-blue-400 rounded text-xs border border-blue-600/30 flex-shrink-0">
                             共享 (只读)
                           </span>
-                          {selectedSvnPromptObj.modified_at && (
-                            <span>{selectedSvnPromptObj.modified_at}</span>
-                          )}
+                          <h1 className="text-xl font-semibold truncate">
+                            {selectedSvnPromptObj.title}
+                          </h1>
                         </div>
                         <button
                           onClick={() => handleCopyPrompt(selectedSvnPromptObj!.content)}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm transition-colors text-white"
+                          className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm transition-colors text-white flex-shrink-0"
                           title="复制内容"
                         >
                           <Copy className="w-4 h-4" />
                           复制
                         </button>
                       </div>
-
-                      {/* 标题 */}
-                      <div className="w-full text-xl font-semibold">
-                        {selectedSvnPromptObj.title}
-                      </div>
-
-                      {/* 元数据行 */}
-                      {(selectedSvnPromptObj.model || selectedSvnPromptObj.tags.length > 0) && (
-                        <div className="flex gap-3 flex-wrap">
-                          {selectedSvnPromptObj.model && (
-                            <div className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg ${styles.contentArea}`}>
-                              <Bot className={`w-4 h-4 ${styles.iconMuted}`} />
-                              <span className={`text-sm ${styles.textSecondary}`}>
-                                {selectedSvnPromptObj.model}
-                              </span>
-                            </div>
-                          )}
-                          {selectedSvnPromptObj.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className={`px-3 py-1.5 border rounded-lg text-sm ${styles.contentArea}`}
-                            >
-                              #{tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
 
                       {/* 内容显示区（只读） */}
                       <div
@@ -926,9 +901,30 @@ function App() {
                         {selectedSvnPromptObj.content}
                       </div>
 
-                      {/* 只读提示 */}
-                      <div className="text-xs text-center text-gray-500 dark:text-gray-400">
-                        这是共享提示词，不可编辑。可以复制到本地项目进行修改。
+                      {/* 底部元数据行：模型 + 标签 + 修改时间 */}
+                      <div className="flex items-center gap-3 flex-wrap text-sm">
+                        {selectedSvnPromptObj.model && (
+                          <div className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg ${styles.contentArea}`}>
+                            <Bot className={`w-4 h-4 ${styles.iconMuted}`} />
+                            <span className={styles.textSecondary}>
+                              {selectedSvnPromptObj.model}
+                            </span>
+                          </div>
+                        )}
+                        {selectedSvnPromptObj.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className={`px-3 py-1.5 border rounded-lg ${styles.contentArea}`}
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                        {selectedSvnPromptObj.modified_at && (
+                          <div className={`ml-auto flex items-center gap-1.5 ${styles.textMuted}`}>
+                            <Clock className="w-4 h-4" />
+                            <span className="text-xs">{selectedSvnPromptObj.modified_at}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -937,74 +933,38 @@ function App() {
                 // 显示数据库提示词（可编辑）
                 return selectedPrompt ? (
                 <div className="max-w-4xl mx-auto space-y-4">
-                  {/* 顶部工具栏 */}
-                  <div className="flex items-center justify-between">
-                    <div className={`text-xs ${styles.textMuted}`}>
-                      {new Date(selectedPrompt.created_at).toLocaleString()}
-                      {selectedPrompt.updated_at !== selectedPrompt.created_at && (
-                        <span className="ml-2">（已编辑）</span>
-                      )}
-                    </div>
+                  {/* 顶部：标题和复制按钮在同一行 */}
+                  <div className="flex items-center justify-between gap-4">
+                    <input
+                      type="text"
+                      value={editingPromptId === selectedPrompt.id ? editingPromptTitle : (selectedPrompt.title || "")}
+                      onChange={(e) => setEditingPromptTitle(e.target.value)}
+                      onFocus={() => {
+                        if (editingPromptId !== selectedPrompt.id) {
+                          setEditingPromptId(selectedPrompt.id);
+                          setEditingPromptTitle(selectedPrompt.title || "");
+                          setEditingPromptContent(selectedPrompt.content);
+                          setEditingPromptTags(selectedPrompt.tags?.join(", ") || "");
+                          setEditingPromptModel(selectedPrompt.model || "");
+                        }
+                      }}
+                      onBlur={() => {
+                        if (editingPromptId === selectedPrompt.id) {
+                          handleUpdatePrompt(selectedPrompt.id);
+                        }
+                      }}
+                      placeholder="输入标题..."
+                      className={`flex-1 text-xl font-semibold bg-transparent border-none outline-none ${isDark ? "text-white placeholder-zinc-600" : "text-slate-900 placeholder-slate-400"
+                        }`}
+                    />
                     <button
                       onClick={() => handleCopyPrompt(selectedPrompt.content)}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm transition-colors text-white"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm transition-colors text-white flex-shrink-0"
                       title="复制内容 (Cmd+C)"
                     >
                       <Copy className="w-4 h-4" />
                       复制
                     </button>
-                  </div>
-
-                  {/* 标题输入 */}
-                  <input
-                    type="text"
-                    value={editingPromptId === selectedPrompt.id ? editingPromptTitle : (selectedPrompt.title || "")}
-                    onChange={(e) => setEditingPromptTitle(e.target.value)}
-                    onFocus={() => {
-                      if (editingPromptId !== selectedPrompt.id) {
-                        setEditingPromptId(selectedPrompt.id);
-                        setEditingPromptTitle(selectedPrompt.title || "");
-                        setEditingPromptContent(selectedPrompt.content);
-                        setEditingPromptTags(selectedPrompt.tags?.join(", ") || "");
-                        setEditingPromptModel(selectedPrompt.model || "");
-                      }
-                    }}
-                    onBlur={() => {
-                      if (editingPromptId === selectedPrompt.id) {
-                        handleUpdatePrompt(selectedPrompt.id);
-                      }
-                    }}
-                    placeholder="输入标题..."
-                    className={`w-full text-xl font-semibold bg-transparent border-none outline-none ${isDark ? "text-white placeholder-zinc-600" : "text-slate-900 placeholder-slate-400"
-                      }`}
-                  />
-
-                  {/* 元数据行 */}
-                  <div className="flex gap-3 flex-wrap">
-                    <div className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg ${styles.contentArea}`}>
-                      <Bot className={`w-4 h-4 ${styles.iconMuted}`} />
-                      <input
-                        type="text"
-                        value={editingPromptId === selectedPrompt.id ? editingPromptModel : (selectedPrompt.model || "")}
-                        onChange={(e) => setEditingPromptModel(e.target.value)}
-                        onFocus={() => {
-                          if (editingPromptId !== selectedPrompt.id) {
-                            setEditingPromptId(selectedPrompt.id);
-                            setEditingPromptTitle(selectedPrompt.title || "");
-                            setEditingPromptContent(selectedPrompt.content);
-                            setEditingPromptTags(selectedPrompt.tags?.join(", ") || "");
-                            setEditingPromptModel(selectedPrompt.model || "");
-                          }
-                        }}
-                        onBlur={() => {
-                          if (editingPromptId === selectedPrompt.id) {
-                            handleUpdatePrompt(selectedPrompt.id);
-                          }
-                        }}
-                        placeholder="模型"
-                        className={`w-28 bg-transparent text-sm focus:outline-none ${styles.textSecondary}`}
-                      />
-                    </div>
                   </div>
 
                   {/* 内容编辑区 */}
@@ -1037,6 +997,71 @@ function App() {
                     className={`w-full min-h-[400px] p-4 border rounded-lg text-sm resize-none focus:outline-none focus:border-blue-500/50 font-mono leading-relaxed ${styles.contentArea} ${isDark ? "text-zinc-200" : "text-slate-800"
                       }`}
                   />
+
+                  {/* 底部元数据行：模型 + 标签 + 修改时间 */}
+                  <div className="flex items-center gap-3 flex-wrap text-sm">
+                    {/* 模型输入框 */}
+                    <div className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg ${styles.contentArea}`}>
+                      <Bot className={`w-4 h-4 ${styles.iconMuted}`} />
+                      <input
+                        type="text"
+                        value={editingPromptId === selectedPrompt.id ? editingPromptModel : (selectedPrompt.model || "")}
+                        onChange={(e) => setEditingPromptModel(e.target.value)}
+                        onFocus={() => {
+                          if (editingPromptId !== selectedPrompt.id) {
+                            setEditingPromptId(selectedPrompt.id);
+                            setEditingPromptTitle(selectedPrompt.title || "");
+                            setEditingPromptContent(selectedPrompt.content);
+                            setEditingPromptTags(selectedPrompt.tags?.join(", ") || "");
+                            setEditingPromptModel(selectedPrompt.model || "");
+                          }
+                        }}
+                        onBlur={() => {
+                          if (editingPromptId === selectedPrompt.id) {
+                            handleUpdatePrompt(selectedPrompt.id);
+                          }
+                        }}
+                        placeholder="模型"
+                        className={`w-28 bg-transparent focus:outline-none ${styles.textSecondary}`}
+                      />
+                    </div>
+
+                    {/* 标签输入框 */}
+                    <div className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg ${styles.contentArea}`}>
+                      <Tag className={`w-4 h-4 ${styles.iconMuted}`} />
+                      <input
+                        type="text"
+                        value={editingPromptId === selectedPrompt.id ? editingPromptTags : (selectedPrompt.tags?.join(", ") || "")}
+                        onChange={(e) => setEditingPromptTags(e.target.value)}
+                        onFocus={() => {
+                          if (editingPromptId !== selectedPrompt.id) {
+                            setEditingPromptId(selectedPrompt.id);
+                            setEditingPromptTitle(selectedPrompt.title || "");
+                            setEditingPromptContent(selectedPrompt.content);
+                            setEditingPromptTags(selectedPrompt.tags?.join(", ") || "");
+                            setEditingPromptModel(selectedPrompt.model || "");
+                          }
+                        }}
+                        onBlur={() => {
+                          if (editingPromptId === selectedPrompt.id) {
+                            handleUpdatePrompt(selectedPrompt.id);
+                          }
+                        }}
+                        placeholder="标签(逗号分隔)"
+                        className={`w-40 bg-transparent focus:outline-none ${styles.textSecondary}`}
+                      />
+                    </div>
+
+                    {/* 修改时间 */}
+                    {selectedPrompt.updated_at && (
+                      <div className={`ml-auto flex items-center gap-1.5 ${styles.textMuted}`}>
+                        <Clock className="w-4 h-4" />
+                        <span className="text-xs">
+                          {new Date(selectedPrompt.updated_at).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : selectedTaskId ? (
                 <div className={`flex flex-col items-center justify-center h-full ${styles.textMuted}`}>
