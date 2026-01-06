@@ -10,9 +10,27 @@ use std::process::Command;
 use walkdir::WalkDir;
 use yaml_rust::YamlLoader;
 
+// Windows 平台需要隐藏控制台窗口
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+/// 创建 SVN 命令（Windows 下隐藏窗口）
+fn create_svn_command() -> Command {
+    let mut cmd = Command::new("svn");
+
+    #[cfg(target_os = "windows")]
+    {
+        // CREATE_NO_WINDOW = 0x08000000
+        // 防止在 Windows 上显示控制台窗口
+        cmd.creation_flags(0x08000000);
+    }
+
+    cmd
+}
+
 /// 执行 SVN 命令
 fn execute_svn_command(args: &[&str]) -> Result<String, AppError> {
-    let output = Command::new("svn")
+    let output = create_svn_command()
         .args(args)
         .output()
         .map_err(|e| {
@@ -32,7 +50,7 @@ fn execute_svn_command(args: &[&str]) -> Result<String, AppError> {
 
 /// 测试 SVN 是否可用
 pub fn check_svn_available() -> Result<bool, AppError> {
-    match Command::new("svn").arg("--version").output() {
+    match create_svn_command().arg("--version").output() {
         Ok(output) => Ok(output.status.success()),
         Err(_) => Ok(false),
     }

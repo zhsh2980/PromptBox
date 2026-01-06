@@ -164,14 +164,13 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
                 const prompts = svnPromptsByFolder[folder.path] || [];
 
                 return (
-                    <div key={folder.path} className="mb-1">
+                    <div key={folder.path}>
                         {/* 文件夹项 */}
                         <div
                             className={`
                                 flex items-center gap-1 px-2 py-1.5 cursor-pointer
-                                hover:bg-gray-100 dark:hover:bg-gray-800 rounded
                                 transition-colors text-sm
-                                ${selectedSvnFolder === folder.path ? styles.selected : ""}
+                                ${selectedSvnFolder === folder.path ? styles.listItemActive : styles.listItem}
                             `}
                             onClick={() => handleFolderClick(folder)}
                         >
@@ -185,7 +184,7 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
 
                         {/* 提示词列表 */}
                         {isExpanded && (
-                            <div className="ml-6 mt-1">
+                            <div className="ml-5">
                                 {svnLoading && prompts.length === 0 && (
                                     <div className="px-2 py-1 text-xs text-gray-500">
                                         加载中...
@@ -196,14 +195,13 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
                                     <div
                                         key={prompt.id}
                                         className={`
-                                            flex items-center gap-2 px-2 py-1.5 cursor-pointer
-                                            hover:bg-gray-100 dark:hover:bg-gray-800 rounded
-                                            transition-colors text-sm
-                                            ${selectedSvnPrompt === prompt.id ? styles.selected : ""}
+                                            flex items-center gap-1 px-2 py-1.5 cursor-pointer
+                                            transition-colors
+                                            ${selectedSvnPrompt === prompt.id ? styles.listItemActiveTask : styles.listItem}
                                         `}
                                         onClick={() => handlePromptClick(prompt)}
                                     >
-                                        <span className="truncate text-xs">{prompt.title}</span>
+                                        <span className={`truncate text-sm ${styles.textSecondary}`}>{prompt.title}</span>
                                     </div>
                                 ))}
 
