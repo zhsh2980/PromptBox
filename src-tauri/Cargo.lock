@@ -2866,7 +2866,7 @@ dependencies = [
 
 [[package]]
 name = "promptlog"
-version = "1.0.6"
+version = "1.0.7"
 dependencies = [
  "chrono",
  "log",

@@ -10,7 +10,7 @@ interface SvnProjectViewProps {
     styles: Record<string, string>;
 }
 
-export function SvnProjectView({ isDark, styles }: SvnProjectViewProps) {
+export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps) {
     const {
         svnConfig,
         svnFolders,
