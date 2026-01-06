@@ -1,10 +1,11 @@
 // 配置数据持久化层
 
-use rusqlite::{params, Connection, Result};
+use rusqlite::{params, Connection};
 use crate::models::SvnConfig;
+use crate::error::AppError;
 
 /// 获取配置项
-pub fn get_setting(conn: &Connection, key: &str) -> Result<Option<String>> {
+pub fn get_setting(conn: &Connection, key: &str) -> Result<Option<String>, AppError> {
     let mut stmt = conn.prepare("SELECT value FROM settings WHERE key = ?1")?;
     let mut rows = stmt.query(params![key])?;
 
@@ -17,7 +18,7 @@ pub fn get_setting(conn: &Connection, key: &str) -> Result<Option<String>> {
 }
 
 /// 设置配置项
-pub fn set_setting(conn: &Connection, key: &str, value: &str) -> Result<()> {
+pub fn set_setting(conn: &Connection, key: &str, value: &str) -> Result<(), AppError> {
     conn.execute(
         "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?1, ?2, datetime('now'))",
         params![key, value],
@@ -26,7 +27,7 @@ pub fn set_setting(conn: &Connection, key: &str, value: &str) -> Result<()> {
 }
 
 /// 获取 SVN 配置
-pub fn get_svn_config(conn: &Connection) -> Result<SvnConfig> {
+pub fn get_svn_config(conn: &Connection) -> Result<SvnConfig, AppError> {
     let enabled = get_setting(conn, "svn_enabled")?
         .unwrap_or_else(|| "false".to_string())
         .parse::<bool>()
@@ -45,7 +46,7 @@ pub fn get_svn_config(conn: &Connection) -> Result<SvnConfig> {
 }
 
 /// 保存 SVN 配置
-pub fn save_svn_config(conn: &Connection, config: &SvnConfig) -> Result<()> {
+pub fn save_svn_config(conn: &Connection, config: &SvnConfig) -> Result<(), AppError> {
     set_setting(conn, "svn_enabled", &config.enabled.to_string())?;
     set_setting(conn, "svn_repository_url", &config.repository_url)?;
 
