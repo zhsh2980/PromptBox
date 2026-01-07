@@ -220,7 +220,11 @@ export const useAppStore = create<AppState>((set) => ({
             };
         }),
 
-    selectPrompt: (id) => set({ selectedPromptEntryId: id }),
+    selectPrompt: (id) => set({
+        selectedPromptEntryId: id,
+        // 选中本地提示词时，清除 SVN 提示词的选中状态
+        selectedSvnPrompt: null,
+    }),
 
     // === 搜索 Actions ===
     setSearchKeyword: (keyword) => set({ globalSearchKeyword: keyword }),
@@ -253,7 +257,11 @@ export const useAppStore = create<AppState>((set) => ({
             selectedPromptEntryId: null,
         }),
 
-    selectSvnPrompt: (promptId) => set({ selectedSvnPrompt: promptId }),
+    selectSvnPrompt: (promptId) => set({
+        selectedSvnPrompt: promptId,
+        // 选中 SVN 提示词时，清除本地提示词的选中状态
+        selectedPromptEntryId: null,
+    }),
 
     setSvnLoading: (loading) => set({ svnLoading: loading }),
 
