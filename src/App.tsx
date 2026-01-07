@@ -605,6 +605,14 @@ function App() {
               {/* SVN 共享 Prompts 视图 - 固定在顶部 */}
               <SvnProjectView isDark={isDark} styles={styles} />
 
+              {/* 本地 Prompts 分组标题 */}
+              <div className={`flex items-center justify-between p-2 ${styles.sidebarBorder} border-t`}>
+                <div className="flex items-center gap-2">
+                  <FolderKanban className="w-4 h-4 text-green-500" />
+                  <span className="font-semibold text-sm">本地Prompts</span>
+                </div>
+              </div>
+
               <SortableProjectList
                 projects={projects}
                 tasksByProject={tasksByProject}

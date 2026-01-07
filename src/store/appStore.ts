@@ -181,6 +181,8 @@ export const useAppStore = create<AppState>((set) => ({
         set({
             selectedTaskId: id,
             selectedPromptEntryId: null,
+            // 选中本地任务时，清除 SVN 提示词的选中状态
+            selectedSvnPrompt: null,
         }),
 
     // === 提示词 Actions ===
