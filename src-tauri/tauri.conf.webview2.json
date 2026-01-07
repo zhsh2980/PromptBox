@@ -34,9 +34,11 @@
       "icons/icon.ico"
     ],
     "windows": {
+      "webviewInstallMode": {
+        "type": "fixedRuntime"
+      },
       "nsis": {
-        "installMode": "currentUser",
-        "webview2InstallMode": "fixedRuntime"
+        "installMode": "currentUser"
       }
     }
   }
