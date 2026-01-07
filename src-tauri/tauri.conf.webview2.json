@@ -35,7 +35,8 @@
     ],
     "windows": {
       "webviewInstallMode": {
-        "type": "fixedRuntime"
+        "type": "downloadBootstrapper",
+        "silent": true
       },
       "nsis": {
         "installMode": "currentUser"
