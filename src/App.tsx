@@ -51,6 +51,8 @@ function App() {
     // SVN 相关
     svnPromptsByFolder,
     selectedSvnPrompt,
+    selectSvnPrompt,
+    toggleSvnFolder,
   } = useAppStore();
 
   const [newProjectName, setNewProjectName] = useState("");
