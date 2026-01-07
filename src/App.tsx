@@ -411,15 +411,30 @@ function App() {
   }
 
   async function handleSearchResult(result: SearchResultDto) {
-    selectProject(result.project_id);
-    if (!tasksByProject[result.project_id]) {
-      await loadTasks(result.project_id);
+    if (result.source === "local") {
+      // 本地数据库的提示词
+      if (result.project_id && result.task_id && result.prompt_id) {
+        selectProject(result.project_id);
+        if (!tasksByProject[result.project_id]) {
+          await loadTasks(result.project_id);
+        }
+        selectTask(result.task_id);
+        if (!promptEntriesByTask[result.task_id]) {
+          await loadPrompts(result.task_id);
+        }
+        selectPrompt(result.prompt_id);
+      }
+    } else if (result.source === "svn") {
+      // SVN 共享 Prompts
+      if (result.file_path) {
+        // 展开对应的文件夹
+        if (result.folder_path) {
+          toggleSvnFolder(result.folder_path);
+        }
+        // 选中SVN prompt
+        selectSvnPrompt(result.file_path);
+      }
     }
-    selectTask(result.task_id);
-    if (!promptEntriesByTask[result.task_id]) {
-      await loadPrompts(result.task_id);
-    }
-    selectPrompt(result.prompt_id);
   }
 
   function toggleProjectExpand(projectId: number) {

@@ -32,15 +32,29 @@ export interface PromptEntryDto {
     updated_at?: string | null;
 }
 
-/** 搜索结果 */
+/** 搜索结果来源 */
+export type SearchSource = "local" | "svn";
+
+/** 搜索结果 DTO */
 export interface SearchResultDto {
-    project_id: number;
-    task_id: number;
-    prompt_id: number;
+    // 来源标识
+    source: SearchSource;
+
+    // 本地数据库字段（仅 local 来源有效）
+    project_id?: number;
+    task_id?: number;
+    prompt_id?: number;
+
+    // 通用字段
     project_name: string;
     task_name: string;
     snippet: string;
     created_at: string;
+
+    // SVN 特有字段（仅 svn 来源有效）
+    folder_path?: string;
+    file_path?: string;
+    prompt_title?: string;
 }
 
 /** API 错误 */
