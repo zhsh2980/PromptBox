@@ -139,11 +139,17 @@ export function GlobalSearch({ onSelectResult, isDark = true }: GlobalSearchProp
                     </div>
                     {results.map((result, index) => (
                         <div
-                            key={`${result.prompt_id}-${index}`}
+                            key={result.source === "local" ? `local-${result.prompt_id}-${index}` : `svn-${result.file_path}-${index}`}
                             onClick={() => handleSelectResult(result)}
                             className={`p-3 cursor-pointer border-b last:border-b-0 ${styles.panelBorder} ${styles.resultHover}`}
                         >
                             <div className="flex items-center gap-2 mb-1">
+                                {/* 来源标识 */}
+                                {result.source === "svn" && (
+                                    <span className={`text-xs px-2 py-0.5 rounded ${isDark ? "bg-purple-600/20 text-purple-400" : "bg-purple-100 text-purple-700"}`}>
+                                        共享
+                                    </span>
+                                )}
                                 <span className={`text-xs px-2 py-0.5 rounded ${isDark ? "bg-blue-600/20 text-blue-400" : "bg-blue-100 text-blue-700"}`}>
                                     {result.project_name}
                                 </span>
@@ -152,6 +158,12 @@ export function GlobalSearch({ onSelectResult, isDark = true }: GlobalSearchProp
                                     {result.task_name}
                                 </span>
                             </div>
+                            {/* 对于SVN prompts，如果有单独的标题，显示标题 */}
+                            {result.source === "svn" && result.prompt_title && (
+                                <p className={`text-sm font-medium mb-1 ${styles.resultText}`}>
+                                    {result.prompt_title}
+                                </p>
+                            )}
                             <p className={`text-sm line-clamp-2 ${styles.resultText}`}>
                                 <HighlightText text={result.snippet} keyword={keyword} isDark={isDark} />
                             </p>

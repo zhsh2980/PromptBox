@@ -1,6 +1,8 @@
 use crate::error::AppError;
-use crate::models::SearchResultDto;
+use crate::models::{SearchResultDto, SearchSource};
+use crate::services::svn_service;
 use rusqlite::Connection;
+use std::path::Path;
 
 /// 搜索提示词记录
 pub fn search_prompts(
@@ -73,13 +75,17 @@ fn parse_search_row(row: &rusqlite::Row, keyword: &str) -> rusqlite::Result<Sear
     let snippet = generate_snippet(&content, &title, keyword);
 
     Ok(SearchResultDto {
-        project_id: row.get(0)?,
-        task_id: row.get(1)?,
-        prompt_id: row.get(2)?,
+        source: SearchSource::Local,
+        project_id: Some(row.get(0)?),
+        task_id: Some(row.get(1)?),
+        prompt_id: Some(row.get(2)?),
         project_name: row.get(3)?,
         task_name: row.get(4)?,
         snippet,
         created_at,
+        folder_path: None,
+        file_path: None,
+        prompt_title: None,
     })
 }
 
@@ -130,4 +136,63 @@ fn generate_snippet(content: &str, title: &Option<String>, keyword: &str) -> Str
             snippet
         }
     }
+}
+
+/// 搜索 SVN prompts
+pub fn search_svn_prompts(
+    svn_local_path: &Path,
+    keyword: &str,
+    limit: i64,
+) -> Result<Vec<SearchResultDto>, AppError> {
+    if keyword.trim().is_empty() {
+        return Ok(vec![]);
+    }
+
+    if !svn_local_path.exists() {
+        return Ok(vec![]);
+    }
+
+    let keyword_lower = keyword.to_lowercase();
+    let mut results = Vec::new();
+
+    // 获取所有文件夹
+    let folders = svn_service::get_folders(svn_local_path)?;
+
+    for folder in folders {
+        // 获取文件夹中的所有prompts
+        let folder_full_path = Path::new(&folder.full_path);
+        let prompts = svn_service::get_prompts_in_folder(folder_full_path, &folder.path)?;
+
+        for prompt in prompts {
+            // 在标题和内容中搜索关键词
+            let title_matches = prompt.title.to_lowercase().contains(&keyword_lower);
+            let content_matches = prompt.content.to_lowercase().contains(&keyword_lower);
+
+            if title_matches || content_matches {
+                // 生成摘要
+                let snippet = generate_snippet(&prompt.content, &Some(prompt.title.clone()), keyword);
+
+                results.push(SearchResultDto {
+                    source: SearchSource::Svn,
+                    project_id: None,
+                    task_id: None,
+                    prompt_id: None,
+                    project_name: "共享Prompts".to_string(),
+                    task_name: folder.name.clone(),
+                    snippet,
+                    created_at: prompt.modified_at.clone(),
+                    folder_path: Some(folder.path.clone()),
+                    file_path: Some(prompt.file_path.clone()),
+                    prompt_title: Some(prompt.title.clone()),
+                });
+
+                // 达到限制数量后停止
+                if results.len() >= limit as usize {
+                    return Ok(results);
+                }
+            }
+        }
+    }
+
+    Ok(results)
 }
