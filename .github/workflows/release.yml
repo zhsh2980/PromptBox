@@ -165,9 +165,10 @@ jobs:
             Copy-Item $exePath "$tempDir/promptlog.exe"
 
             if ("${{ matrix.webview2 }}" -eq "true") {
-              # 下载 WebView2 Runtime 离线安装器
-              Write-Host "Downloading WebView2 Runtime..."
-              $webview2Url = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+              # 下载 WebView2 Runtime 离线安装器（x64 版本）
+              # 参考：https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/util.rs
+              Write-Host "Downloading WebView2 Runtime offline installer (x64)..."
+              $webview2Url = "https://go.microsoft.com/fwlink/?linkid=2124701"  # x64 离线安装器（~150MB）
               $webview2Path = "$tempDir/MicrosoftEdgeWebview2Setup.exe"
 
               try {
