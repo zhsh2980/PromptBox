@@ -26,13 +26,13 @@ export function SettingsDialog({ isOpen, onClose, isDark = true }: SettingsDialo
 
     // 主题样式
     const styles = {
-        overlay: "fixed inset-0 bg-black/50 flex items-center justify-center z-50",
+        overlay: "fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4",
         dialog: isDark
-            ? "bg-zinc-800 rounded-xl w-[500px] shadow-2xl select-text text-white"
-            : "bg-white rounded-xl w-[500px] shadow-2xl select-text text-slate-900",
+            ? "bg-zinc-800 rounded-xl w-full max-w-[500px] max-h-[90vh] shadow-2xl select-text text-white flex flex-col"
+            : "bg-white rounded-xl w-full max-w-[500px] max-h-[90vh] shadow-2xl select-text text-slate-900 flex flex-col",
         header: isDark
-            ? "flex items-center justify-between p-4 border-b border-zinc-700"
-            : "flex items-center justify-between p-4 border-b border-slate-200",
+            ? "flex items-center justify-between p-3 sm:p-4 border-b border-zinc-700 flex-shrink-0"
+            : "flex items-center justify-between p-3 sm:p-4 border-b border-slate-200 flex-shrink-0",
         closeBtn: isDark
             ? "text-zinc-400 hover:text-white transition-colors"
             : "text-slate-400 hover:text-slate-900 transition-colors",
@@ -60,8 +60,8 @@ export function SettingsDialog({ isOpen, onClose, isDark = true }: SettingsDialo
             : "flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg",
         warningText: isDark ? "text-xs text-yellow-500/80" : "text-xs text-yellow-700",
         footer: isDark
-            ? "flex justify-end p-4 border-t border-zinc-700"
-            : "flex justify-end p-4 border-t border-slate-200",
+            ? "flex justify-end p-3 sm:p-4 border-t border-zinc-700 flex-shrink-0"
+            : "flex justify-end p-3 sm:p-4 border-t border-slate-200 flex-shrink-0",
         closeFooterBtn: isDark
             ? "px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg transition-colors"
             : "px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg transition-colors",
@@ -255,7 +255,7 @@ export function SettingsDialog({ isOpen, onClose, isDark = true }: SettingsDialo
                 </div>
 
                 {/* 内容 */}
-                <div className="p-6 space-y-6">
+                <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto flex-1">
                     {/* 数据库位置 */}
                     <div>
                         <h3 className={styles.sectionTitle}>数据库位置</h3>

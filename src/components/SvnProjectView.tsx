@@ -1,6 +1,6 @@
 // SVN 共享 Prompts 视图组件
 import { useState, useEffect } from "react";
-import { ChevronDown, ChevronRight, FolderGit2, RefreshCw, AlertCircle } from "lucide-react";
+import { ChevronDown, ChevronRight, FolderGit2, RefreshCw, AlertCircle, FileText } from "lucide-react";
 import { useAppStore } from "../store/appStore";
 import { SvnApi } from "../tauri-api";
 import type { SvnFolder, SvnPrompt } from "../types";
@@ -168,25 +168,34 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
                         {/* 文件夹项 */}
                         <div
                             className={`
-                                flex items-center gap-1 px-2 py-1.5 cursor-pointer
-                                transition-colors text-sm
+                                flex items-center gap-1 px-2 py-2 cursor-pointer
+                                transition-colors group relative
                                 ${selectedSvnFolder === folder.path ? styles.listItemActive : styles.listItem}
                             `}
                             onClick={() => handleFolderClick(folder)}
                         >
-                            {isExpanded ? (
-                                <ChevronDown className="w-4 h-4 flex-shrink-0" />
-                            ) : (
-                                <ChevronRight className="w-4 h-4 flex-shrink-0" />
-                            )}
-                            <span className="truncate">{folder.name}</span>
+                            <button
+                                className={`p-0.5 rounded flex-shrink-0 ${styles.buttonHover}`}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleFolderClick(folder);
+                                }}
+                            >
+                                {isExpanded ? (
+                                    <ChevronDown className={`w-4 h-4 ${styles.iconMuted}`} />
+                                ) : (
+                                    <ChevronRight className={`w-4 h-4 ${styles.iconMuted}`} />
+                                )}
+                            </button>
+                            <FolderGit2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                            <span className="flex-1 text-sm truncate">{folder.name}</span>
                         </div>
 
                         {/* 提示词列表 */}
                         {isExpanded && (
-                            <div className="ml-5">
+                            <div className="ml-6">
                                 {svnLoading && prompts.length === 0 && (
-                                    <div className="px-2 py-1 text-xs text-gray-500">
+                                    <div className={`px-2 py-1 text-xs ${styles.textMuted}`}>
                                         加载中...
                                     </div>
                                 )}
@@ -196,17 +205,18 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
                                         key={prompt.id}
                                         className={`
                                             flex items-center gap-1 px-2 py-1.5 cursor-pointer
-                                            transition-colors
+                                            transition-colors group relative
                                             ${selectedSvnPrompt === prompt.id ? styles.listItemActiveTask : styles.listItem}
                                         `}
                                         onClick={() => handlePromptClick(prompt)}
                                     >
-                                        <span className={`truncate text-sm ${styles.textSecondary}`}>{prompt.title}</span>
+                                        <FileText className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                                        <span className={`flex-1 text-sm truncate ${styles.textSecondary}`}>{prompt.title}</span>
                                     </div>
                                 ))}
 
                                 {prompts.length === 0 && !svnLoading && (
-                                    <div className="px-2 py-1 text-xs text-gray-500">
+                                    <div className={`px-2 py-1 text-xs ${styles.textMuted}`}>
                                         暂无提示词
                                     </div>
                                 )}
