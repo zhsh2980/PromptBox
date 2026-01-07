@@ -3,6 +3,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - 'claude/add-svn-prompts-source-2pnrv'
   workflow_dispatch:
 
 jobs:
@@ -35,16 +37,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Rust setup
+      - name: Rust setup (macOS)
+        if: matrix.platform == 'macos-latest'
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
-      # Temporarily disable Rust cache to debug build issues
-      # - name: Rust cache
-      #   uses: swatinem/rust-cache@v2
-      #   with:
-      #     workspaces: './src-tauri -> target'
+      - name: Rust setup (Windows)
+        if: matrix.platform == 'windows-latest'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
 
       - name: Sync node version and setup cache
         uses: actions/setup-node@v4
@@ -68,17 +74,10 @@ jobs:
         shell: bash
 
       - name: Configure WebView2 bundling
-        if: matrix.webview2 == true
+        if: matrix.platform == 'windows-latest' && matrix.webview2 == true
+        shell: bash
         run: |
-          node -e "
-          const fs = require('fs');
-          const config = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
-          config.bundle.windows = config.bundle.windows || {};
-          config.bundle.windows.webviewInstallMode = {
-            type: 'offlineInstaller'
-          };
-          fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(config, null, 2));
-          "
+          node -e "const fs = require('fs'); const config = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')); config.bundle.windows = config.bundle.windows || {}; config.bundle.windows.webviewInstallMode = { type: 'offlineInstaller' }; fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(config, null, 2));"
 
       - name: Build the app
         uses: tauri-apps/tauri-action@v0
