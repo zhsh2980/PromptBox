@@ -3,8 +3,6 @@ on:
   push:
     tags:
       - 'v*'
-    branches:
-      - 'claude/add-svn-prompts-source-2pnrv'
   workflow_dispatch:
 
 jobs:
