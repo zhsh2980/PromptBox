@@ -16,39 +16,28 @@ jobs:
           - platform: macos-latest
             args: --target aarch64-apple-darwin
             name: macOS-ARM64
-            webview2: false
           - platform: macos-latest
             args: --target x86_64-apple-darwin
             name: macOS-Intel
-            webview2: false
           - platform: windows-latest
             args: ''
             name: Windows
-            webview2: false
-          - platform: windows-latest
-            args: ''
-            name: Windows-WebView2
-            webview2: true
     runs-on: ${{ matrix.platform }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Rust setup (macOS)
-        if: matrix.platform == 'macos-latest'
+      - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
-      - name: Rust setup (Windows)
-        if: matrix.platform == 'windows-latest'
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: './src-tauri -> target'
+      # Temporarily disable Rust cache to debug build issues
+      # - name: Rust cache
+      #   uses: swatinem/rust-cache@v2
+      #   with:
+      #     workspaces: './src-tauri -> target'
 
       - name: Sync node version and setup cache
         uses: actions/setup-node@v4
@@ -58,24 +47,6 @@ jobs:
 
       - name: Install frontend dependencies
         run: npm install
-
-      - name: Extract version from package.json
-        id: version
-        run: |
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            VERSION=$(node -p "require('./package.json').version")
-            echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          else
-            VERSION=$(node -p "require('./package.json').version")
-            echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          fi
-        shell: bash
-
-      - name: Configure WebView2 bundling
-        if: matrix.platform == 'windows-latest' && matrix.webview2 == true
-        shell: bash
-        run: |
-          node -e "const fs = require('fs'); const config = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')); config.bundle.windows = config.bundle.windows || {}; config.bundle.windows.webviewInstallMode = { type: 'offlineInstaller' }; fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(config, null, 2));"
 
       - name: Build the app
         uses: tauri-apps/tauri-action@v0
@@ -89,70 +60,21 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
 
-      # Create portable zip for Windows (standard version)
+      # Create portable zip for Windows
       - name: Create Windows Portable ZIP
-        if: matrix.platform == 'windows-latest' && matrix.webview2 == false
+        if: matrix.platform == 'windows-latest'
         run: |
-          $version = "${{ steps.version.outputs.VERSION }}"
           $exePath = "src-tauri/target/release/promptlog.exe"
           if (Test-Path $exePath) {
-            Compress-Archive -Path $exePath -DestinationPath "PromptLog-Windows-Portable-v$version.zip"
+            Compress-Archive -Path $exePath -DestinationPath "PromptLog-Windows-Portable.zip"
           }
         shell: pwsh
 
       - name: Upload Windows Portable ZIP
-        if: matrix.platform == 'windows-latest' && matrix.webview2 == false
+        if: matrix.platform == 'windows-latest'
         uses: softprops/action-gh-release@v1
         with:
           draft: true
-          files: PromptLog-Windows-Portable-v${{ steps.version.outputs.VERSION }}.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Create portable zip for Windows with WebView2
-      - name: Download WebView2 Runtime
-        if: matrix.platform == 'windows-latest' && matrix.webview2 == true
-        run: |
-          $webview2Url = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
-          Invoke-WebRequest -Uri $webview2Url -OutFile "MicrosoftEdgeWebview2Setup.exe"
-        shell: pwsh
-
-      - name: Create Windows Portable ZIP with WebView2
-        if: matrix.platform == 'windows-latest' && matrix.webview2 == true
-        run: |
-          $version = "${{ steps.version.outputs.VERSION }}"
-          $exePath = "src-tauri/target/release/promptlog.exe"
-          if (Test-Path $exePath) {
-            $tempDir = "PromptLog-Portable-WebView2"
-            New-Item -ItemType Directory -Path $tempDir -Force
-            Copy-Item $exePath -Destination "$tempDir/promptlog.exe"
-            Copy-Item "MicrosoftEdgeWebview2Setup.exe" -Destination "$tempDir/MicrosoftEdgeWebview2Setup.exe"
-
-            # Create README for WebView2
-            @"
-PromptLog Portable (with WebView2 Runtime)
-
-运行说明:
-1. 如果您的系统已安装 Microsoft Edge WebView2 Runtime，可以直接运行 promptlog.exe
-2. 如果运行时提示缺少 WebView2，请先运行 MicrosoftEdgeWebview2Setup.exe 安装运行时环境
-3. WebView2 Runtime 安装包大约 100MB，安装后可删除 MicrosoftEdgeWebview2Setup.exe
-
-Instructions:
-1. If Microsoft Edge WebView2 Runtime is already installed, you can run promptlog.exe directly
-2. If you get WebView2 missing error, please run MicrosoftEdgeWebview2Setup.exe first
-3. The WebView2 Runtime installer is about 100MB, you can delete MicrosoftEdgeWebview2Setup.exe after installation
-"@ | Out-File -FilePath "$tempDir/README.txt" -Encoding UTF8
-
-            Compress-Archive -Path "$tempDir/*" -DestinationPath "PromptLog-Windows-Portable-with-webview2-v$version.zip"
-            Remove-Item -Recurse -Force $tempDir
-          }
-        shell: pwsh
-
-      - name: Upload Windows Portable ZIP with WebView2
-        if: matrix.platform == 'windows-latest' && matrix.webview2 == true
-        uses: softprops/action-gh-release@v1
-        with:
-          draft: true
-          files: PromptLog-Windows-Portable-with-webview2-v${{ steps.version.outputs.VERSION }}.zip
+          files: PromptLog-Windows-Portable.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
