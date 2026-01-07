@@ -29,12 +29,12 @@ pub fn set_setting(conn: &Connection, key: &str, value: &str) -> Result<(), AppE
 /// 获取 SVN 配置
 pub fn get_svn_config(conn: &Connection) -> Result<SvnConfig, AppError> {
     let enabled = get_setting(conn, "svn_enabled")?
-        .unwrap_or_else(|| "false".to_string())
+        .unwrap_or_else(|| "true".to_string())
         .parse::<bool>()
-        .unwrap_or(false);
+        .unwrap_or(true);
 
     let repository_url = get_setting(conn, "svn_repository_url")?
-        .unwrap_or_default();
+        .unwrap_or_else(|| "http://techsrv.wind.com.cn:8080/svn/WindRes/Management/TEC/Tech.AND/Documents/团队公约/PromptsBox共建".to_string());
 
     let local_path = get_setting(conn, "svn_local_path")?;
 
