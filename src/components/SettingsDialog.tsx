@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Download, Upload, FolderOpen, AlertTriangle, Copy, Check, FolderGit2 } from "lucide-react";
+import { X, Download, Upload, FolderOpen, AlertTriangle, Copy, Check, FolderGit2, CheckCircle, XCircle } from "lucide-react";
 import { BackupApi, ProjectApi, SvnApi } from "../tauri-api";
 import { useAppStore } from "../store";
 import { save, open } from "@tauri-apps/plugin-dialog";
@@ -360,27 +360,22 @@ export function SettingsDialog({ isOpen, onClose, isDark = true }: SettingsDialo
                                 <button
                                     onClick={handleTestSvnConnection}
                                     disabled={svnTesting || !svnConfig.repository_url}
-                                    className={`w-full px-3 py-2 rounded-lg text-sm transition-colors ${
+                                    className={`w-full px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 ${
                                         isDark
                                             ? "bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50"
                                             : "bg-slate-200 hover:bg-slate-300 disabled:opacity-50"
                                     }`}
                                 >
-                                    {svnTesting ? "测试中..." : "测试连接"}
+                                    <span>{svnTesting ? "测试中..." : "测试连接"}</span>
+                                    {/* 测试结果图标 */}
+                                    {!svnTesting && svnTestResult && (
+                                        svnTestResult.success ? (
+                                            <CheckCircle className="w-4 h-4 text-green-500" />
+                                        ) : (
+                                            <XCircle className="w-4 h-4 text-red-500" />
+                                        )
+                                    )}
                                 </button>
-
-                                {/* 测试结果 */}
-                                {svnTestResult && (
-                                    <div
-                                        className={`p-2 rounded-lg text-xs ${
-                                            svnTestResult.success
-                                                ? "bg-green-900/20 border border-green-600/30 text-green-400"
-                                                : "bg-red-900/20 border border-red-600/30 text-red-400"
-                                        }`}
-                                    >
-                                        {svnTestResult.message}
-                                    </div>
-                                )}
 
                                 {/* 提示信息 */}
                                 {!svnConfig.repository_url && (
