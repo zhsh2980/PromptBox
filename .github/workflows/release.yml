@@ -170,15 +170,47 @@ jobs:
             New-Item -ItemType Directory -Path $tempDir -Force
             Copy-Item $exePath "$tempDir/promptlog.exe"
 
+            # 如果是 WebView2 版本，下载 WebView2 Runtime
+            if ("${{ matrix.webview2 }}" -eq "true") {
+              Write-Host "Downloading WebView2 Runtime standalone installer..."
+              $webview2Url = "https://github.com/aedancullen/webview2-evergreen-standalone-installer-archive/releases/latest/download/MicrosoftEdgeWebView2RuntimeInstallerX64.exe"
+              $webview2Path = "$tempDir/MicrosoftEdgeWebView2RuntimeInstallerX64.exe"
+
+              try {
+                # 使用 curl 下载
+                curl.exe -L -o $webview2Path $webview2Url
+
+                # 验证文件是否下载成功且大小合理（至少 100MB）
+                if (Test-Path $webview2Path) {
+                  $fileSize = (Get-Item $webview2Path).Length / 1MB
+                  Write-Host "WebView2 Runtime downloaded: $([math]::Round($fileSize, 2)) MB"
+
+                  if ($fileSize -lt 100) {
+                    throw "Downloaded file is too small ($([math]::Round($fileSize, 2)) MB), expected at least 100MB"
+                  }
+                } else {
+                  throw "WebView2 installer file not found after download"
+                }
+              } catch {
+                Write-Host "Error: Failed to download WebView2 Runtime: $_"
+                throw "WebView2 download failed - cannot create webview2 package without it"
+              }
+            }
+
             # 创建说明文件
             if ("${{ matrix.webview2 }}" -eq "true") {
               "PromptLog Portable (with WebView2 Runtime)" | Out-File "$tempDir/README.txt" -Encoding UTF8
               "" | Out-File "$tempDir/README.txt" -Append -Encoding UTF8
-              "此版本在构建时已包含 WebView2 Runtime，安装包较大但可离线使用。" | Out-File "$tempDir/README.txt" -Append -Encoding UTF8
+              "此版本包含完整的 WebView2 Runtime 离线安装器，可完全离线使用。" | Out-File "$tempDir/README.txt" -Append -Encoding UTF8
               "" | Out-File "$tempDir/README.txt" -Append -Encoding UTF8
-              "使用方法：" | Out-File "$tempDir/README.txt" -Append -Encoding UTF8
+              "首次使用步骤：" | Out-File "$tempDir/README.txt" -Append -Encoding UTF8
               "1. 解压到任意目录" | Out-File "$tempDir/README.txt" -Append -Encoding UTF8
-              "2. 双击 promptlog.exe 运行" | Out-File "$tempDir/README.txt" -Append -Encoding UTF8
+              "2. 双击运行 MicrosoftEdgeWebView2RuntimeInstallerX64.exe 安装 WebView2" | Out-File "$tempDir/README.txt" -Append -Encoding UTF8
+              "3. 安装完成后，运行 promptlog.exe" | Out-File "$tempDir/README.txt" -Append -Encoding UTF8
+              "" | Out-File "$tempDir/README.txt" -Append -Encoding UTF8
+              "注意：" | Out-File "$tempDir/README.txt" -Append -Encoding UTF8
+              "- WebView2 Runtime 只需安装一次，系统全局可用" | Out-File "$tempDir/README.txt" -Append -Encoding UTF8
+              "- 如果系统已安装 WebView2，可直接运行 promptlog.exe，无需再次安装" | Out-File "$tempDir/README.txt" -Append -Encoding UTF8
               "" | Out-File "$tempDir/README.txt" -Append -Encoding UTF8
               "版本：$version" | Out-File "$tempDir/README.txt" -Append -Encoding UTF8
 
