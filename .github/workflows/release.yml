@@ -1,6 +1,19 @@
 name: Release
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'           # 推送 v* tag 时自动构建并创建 Release
+  workflow_dispatch:   # 手动触发
+    inputs:
+      create_release:
+        description: '是否创建 GitHub Release'
+        required: true
+        type: boolean
+        default: true
+      release_tag:
+        description: 'Release 标签名（留空则使用配置文件版本号）'
+        required: false
+        type: string
 
 jobs:
   release:
@@ -72,6 +85,19 @@ jobs:
         with:
           args: ${{ matrix.args }}
 
+      # 读取版本号（用于手动触发时的 Release 标签）
+      - name: Get version from config
+        id: get_version
+        shell: bash
+        run: |
+          if [ "${{ matrix.platform }}" == "windows-latest" ]; then
+            VERSION=$(powershell -Command "(Get-Content 'src-tauri/tauri.conf.json' | ConvertFrom-Json).version")
+          else
+            VERSION=$(cat src-tauri/tauri.conf.json | grep '"version"' | sed 's/.*"version": "\(.*\)".*/\1/')
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
       # Windows: 重命名 NSIS 安装包
       - name: Rename Windows installer
         if: matrix.platform == 'windows-latest'
@@ -100,22 +126,27 @@ jobs:
         if: matrix.platform == 'macos-latest'
         run: |
           VERSION=$(cat src-tauri/tauri.conf.json | grep '"version"' | sed 's/.*"version": "\(.*\)".*/\1/')
-          BUNDLE_DIR="src-tauri/target/release/bundle/dmg"
+
+          # macOS 使用 --target 参数，输出目录包含架构名称
+          if [[ "${{ matrix.arch }}" == "aarch64" ]]; then
+            BUNDLE_DIR="src-tauri/target/aarch64-apple-darwin/release/bundle/dmg"
+            NEW_NAME="PromptLog-macOS-ARM64-v${VERSION}.dmg"
+          else
+            BUNDLE_DIR="src-tauri/target/x86_64-apple-darwin/release/bundle/dmg"
+            NEW_NAME="PromptLog-macOS-Intel-v${VERSION}.dmg"
+          fi
 
           if [ -d "$BUNDLE_DIR" ]; then
             for dmg in "$BUNDLE_DIR"/*.dmg; do
               if [ -f "$dmg" ]; then
-                if [[ "${{ matrix.arch }}" == "aarch64" ]]; then
-                  NEW_NAME="PromptLog-macOS-ARM64-v${VERSION}.dmg"
-                else
-                  NEW_NAME="PromptLog-macOS-Intel-v${VERSION}.dmg"
-                fi
-
                 NEW_PATH="$BUNDLE_DIR/$NEW_NAME"
                 mv "$dmg" "$NEW_PATH"
                 echo "Renamed: $(basename $dmg) -> $NEW_NAME"
               fi
             done
+          else
+            echo "Warning: Bundle directory not found: $BUNDLE_DIR"
+            ls -la src-tauri/target/ || true
           fi
         shell: bash
 
@@ -137,11 +168,26 @@ jobs:
               # 下载 WebView2 Runtime 离线安装器
               Write-Host "Downloading WebView2 Runtime..."
               $webview2Url = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+              $webview2Path = "$tempDir/MicrosoftEdgeWebview2Setup.exe"
+
               try {
-                Invoke-WebRequest -Uri $webview2Url -OutFile "$tempDir/MicrosoftEdgeWebview2Setup.exe" -UseBasicParsing
-                Write-Host "WebView2 Runtime downloaded successfully"
+                # 使用 curl 下载，支持重定向，更稳定
+                curl.exe -L -o $webview2Path $webview2Url
+
+                # 验证文件是否下载成功且大小合理（至少 50MB）
+                if (Test-Path $webview2Path) {
+                  $fileSize = (Get-Item $webview2Path).Length / 1MB
+                  Write-Host "WebView2 Runtime downloaded: $([math]::Round($fileSize, 2)) MB"
+
+                  if ($fileSize -lt 50) {
+                    throw "Downloaded file is too small ($([math]::Round($fileSize, 2)) MB), expected at least 50MB"
+                  }
+                } else {
+                  throw "WebView2 installer file not found after download"
+                }
               } catch {
-                Write-Host "Warning: Failed to download WebView2 Runtime: $_"
+                Write-Host "Error: Failed to download WebView2 Runtime: $_"
+                throw "WebView2 download failed - cannot create webview2 package without it"
               }
 
               # 创建说明文件
@@ -168,13 +214,42 @@ jobs:
             Write-Host "Created: $zipName"
           }
 
-      # 上传构建产物
+      # 上传到 Artifacts（用于调试和手动触发）
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}-artifacts
           path: |
             src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/*/release/bundle/dmg/*.dmg
             PromptLog-Windows-Portable-*.zip
           if-no-files-found: warn
+
+      # 上传到 Release（仅 tag 触发）
+      - name: Upload to Release (Tag Push)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/*/release/bundle/dmg/*.dmg
+            PromptLog-Windows-Portable-*.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 上传到 Release（仅手动触发）
+      - name: Upload to Release (Manual Trigger)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/*/release/bundle/dmg/*.dmg
+            PromptLog-Windows-Portable-*.zip
+          tag_name: ${{ github.event.inputs.release_tag != '' && github.event.inputs.release_tag || format('v{0}', steps.get_version.outputs.version) }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
