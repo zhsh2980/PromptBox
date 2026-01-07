@@ -137,24 +137,37 @@ export function SettingsDialog({ isOpen, onClose, isDark = true }: SettingsDialo
         try {
             const isAvailable = await SvnApi.checkAvailable();
             if (!isAvailable) {
+                const errorMsg = "SVN 环境变量未配置或 SVN 客户端未安装";
                 setSvnTestResult({
                     success: false,
-                    message: "SVN 客户端未安装或未添加到系统 PATH",
+                    message: errorMsg,
                 });
+                toast.error(errorMsg);
                 setSvnTesting(false);
                 return;
             }
 
             const result = await SvnApi.testConnection(svnConfig.repository_url);
-            setSvnTestResult({
-                success: result,
-                message: result ? "连接成功！" : "连接失败，请检查仓库地址是否正确",
-            });
+            if (result) {
+                setSvnTestResult({
+                    success: true,
+                    message: "连接成功！",
+                });
+            } else {
+                const errorMsg = "连接失败，请检查仓库地址是否正确";
+                setSvnTestResult({
+                    success: false,
+                    message: errorMsg,
+                });
+                toast.error(errorMsg);
+            }
         } catch (e: any) {
+            const errorMsg = `测试失败: ${e.message || e}`;
             setSvnTestResult({
                 success: false,
-                message: `测试失败: ${e.message || e}`,
+                message: errorMsg,
             });
+            toast.error(errorMsg);
         } finally {
             setSvnTesting(false);
         }
@@ -388,7 +401,7 @@ export function SettingsDialog({ isOpen, onClose, isDark = true }: SettingsDialo
                                 )}
 
                                 <p className={styles.hint}>
-                                    共享Prompts 会显示在侧边栏顶部，内容为只读模式。需要安装 SVN 客户端。
+                                    共享Prompts 会显示在侧边栏顶部，内容为只读模式。需要配置 SVN 环境变量。
                                 </p>
                             </div>
                         )}
