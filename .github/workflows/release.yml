@@ -91,16 +91,12 @@ jobs:
         with:
           args: ${{ matrix.args }}
 
-      # 读取版本号（用于手动触发时的 Release 标签）
-      - name: Get version from config
+      # 读取版本号（从 Cargo.toml - 单一数据源）
+      - name: Get version from Cargo.toml
         id: get_version
         shell: bash
         run: |
-          if [ "${{ matrix.platform }}" == "windows-latest" ]; then
-            VERSION=$(powershell -Command "(Get-Content 'src-tauri/tauri.conf.json' | ConvertFrom-Json).version")
-          else
-            VERSION=$(cat src-tauri/tauri.conf.json | grep '"version"' | sed 's/.*"version": "\(.*\)".*/\1/')
-          fi
+          VERSION=$(grep '^version = ' src-tauri/Cargo.toml | head -n 1 | sed 's/version = "\(.*\)"/\1/')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
@@ -108,8 +104,8 @@ jobs:
       - name: Rename Windows installer
         if: matrix.platform == 'windows-latest'
         run: |
-          $config = Get-Content "src-tauri/tauri.conf.json" | ConvertFrom-Json
-          $version = $config.version
+          # 从 Cargo.toml 读取版本号
+          $version = (Get-Content "src-tauri/Cargo.toml" | Select-String '^version = "(.+)"').Matches.Groups[1].Value
           $bundleDir = "src-tauri/target/release/bundle/nsis"
 
           if (Test-Path $bundleDir) {
@@ -131,7 +127,8 @@ jobs:
       - name: Rename macOS DMG
         if: matrix.platform == 'macos-latest'
         run: |
-          VERSION=$(cat src-tauri/tauri.conf.json | grep '"version"' | sed 's/.*"version": "\(.*\)".*/\1/')
+          # 从 Cargo.toml 读取版本号
+          VERSION=$(grep '^version = ' src-tauri/Cargo.toml | head -n 1 | sed 's/version = "\(.*\)"/\1/')
 
           # macOS 使用 --target 参数，输出目录包含架构名称
           if [[ "${{ matrix.arch }}" == "aarch64" ]]; then
@@ -161,8 +158,8 @@ jobs:
         if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
-          $config = Get-Content "src-tauri/tauri.conf.json" | ConvertFrom-Json
-          $version = $config.version
+          # 从 Cargo.toml 读取版本号
+          $version = (Get-Content "src-tauri/Cargo.toml" | Select-String '^version = "(.+)"').Matches.Groups[1].Value
           $exePath = "src-tauri/target/release/promptlog.exe"
 
           if (Test-Path $exePath) {
@@ -274,11 +271,11 @@ jobs:
             # Tag 触发：使用 git tag
             echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           else
-            # 手动触发：使用输入的 tag 或从配置文件读取版本号
+            # 手动触发：使用输入的 tag 或从 Cargo.toml 读取版本号
             if [ -n "${{ github.event.inputs.release_tag }}" ]; then
               echo "tag=${{ github.event.inputs.release_tag }}" >> $GITHUB_OUTPUT
             else
-              VERSION=$(cat src-tauri/tauri.conf.json | grep '"version"' | sed 's/.*"version": "\(.*\)".*/\1/')
+              VERSION=$(grep '^version = ' src-tauri/Cargo.toml | head -n 1 | sed 's/version = "\(.*\)"/\1/')
               echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
             fi
           fi
