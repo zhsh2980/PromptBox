@@ -168,11 +168,26 @@ jobs:
               # 下载 WebView2 Runtime 离线安装器
               Write-Host "Downloading WebView2 Runtime..."
               $webview2Url = "https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+              $webview2Path = "$tempDir/MicrosoftEdgeWebview2Setup.exe"
+
               try {
-                Invoke-WebRequest -Uri $webview2Url -OutFile "$tempDir/MicrosoftEdgeWebview2Setup.exe" -UseBasicParsing
-                Write-Host "WebView2 Runtime downloaded successfully"
+                # 使用 curl 下载，支持重定向，更稳定
+                curl.exe -L -o $webview2Path $webview2Url
+
+                # 验证文件是否下载成功且大小合理（至少 50MB）
+                if (Test-Path $webview2Path) {
+                  $fileSize = (Get-Item $webview2Path).Length / 1MB
+                  Write-Host "WebView2 Runtime downloaded: $([math]::Round($fileSize, 2)) MB"
+
+                  if ($fileSize -lt 50) {
+                    throw "Downloaded file is too small ($([math]::Round($fileSize, 2)) MB), expected at least 50MB"
+                  }
+                } else {
+                  throw "WebView2 installer file not found after download"
+                }
               } catch {
-                Write-Host "Warning: Failed to download WebView2 Runtime: $_"
+                Write-Host "Error: Failed to download WebView2 Runtime: $_"
+                throw "WebView2 download failed - cannot create webview2 package without it"
               }
 
               # 创建说明文件
