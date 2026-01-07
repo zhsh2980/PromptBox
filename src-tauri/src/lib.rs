@@ -78,6 +78,14 @@ pub fn run() {
             // 备份命令
             export_data,
             import_data,
+            // SVN 命令
+            get_svn_config,
+            update_svn_config,
+            check_svn_available,
+            test_svn_connection,
+            refresh_svn_data,
+            get_svn_folders,
+            get_svn_prompts_for_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

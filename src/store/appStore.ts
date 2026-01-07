@@ -1,6 +1,6 @@
 // 全局状态管理 Store
 import { create } from "zustand";
-import type { ProjectDto, TaskDto, PromptEntryDto, SearchResultDto } from "../types";
+import type { ProjectDto, TaskDto, PromptEntryDto, SearchResultDto, SvnConfig, SvnFolder, SvnPrompt } from "../types";
 
 /** 应用全局状态 */
 interface AppState {
@@ -22,6 +22,16 @@ interface AppState {
     isSettingsDialogOpen: boolean;
     isGlobalSearchPanelOpen: boolean;
     isLoading: boolean;
+
+    // === SVN 数据 ===
+    svnConfig: SvnConfig | null;
+    svnFolders: SvnFolder[];
+    svnPromptsByFolder: Record<string, SvnPrompt[]>;
+    selectedSvnFolder: string | null;
+    selectedSvnPrompt: string | null;
+    svnLoading: boolean;
+    svnError: string | null;
+    expandedSvnFolders: Set<string>;
 
     // === Actions ===
     // 项目相关
@@ -56,6 +66,16 @@ interface AppState {
     closeSettingsDialog: () => void;
     setLoading: (loading: boolean) => void;
 
+    // SVN 相关
+    setSvnConfig: (config: SvnConfig | null) => void;
+    setSvnFolders: (folders: SvnFolder[]) => void;
+    setSvnPromptsForFolder: (folderPath: string, prompts: SvnPrompt[]) => void;
+    selectSvnFolder: (folderPath: string | null) => void;
+    selectSvnPrompt: (promptId: string | null) => void;
+    setSvnLoading: (loading: boolean) => void;
+    setSvnError: (error: string | null) => void;
+    toggleSvnFolder: (folderPath: string) => void;
+
     // 重置
     reset: () => void;
 }
@@ -72,6 +92,14 @@ const initialState = {
     isSettingsDialogOpen: false,
     isGlobalSearchPanelOpen: false,
     isLoading: false,
+    svnConfig: null,
+    svnFolders: [],
+    svnPromptsByFolder: {},
+    selectedSvnFolder: null,
+    selectedSvnPrompt: null,
+    svnLoading: false,
+    svnError: null,
+    expandedSvnFolders: new Set<string>(),
 };
 
 export const useAppStore = create<AppState>((set) => ({
@@ -192,7 +220,11 @@ export const useAppStore = create<AppState>((set) => ({
             };
         }),
 
-    selectPrompt: (id) => set({ selectedPromptEntryId: id }),
+    selectPrompt: (id) => set({
+        selectedPromptEntryId: id,
+        // 选中本地提示词时，清除 SVN 提示词的选中状态
+        selectedSvnPrompt: null,
+    }),
 
     // === 搜索 Actions ===
     setSearchKeyword: (keyword) => set({ globalSearchKeyword: keyword }),
@@ -204,6 +236,47 @@ export const useAppStore = create<AppState>((set) => ({
     openSettingsDialog: () => set({ isSettingsDialogOpen: true }),
     closeSettingsDialog: () => set({ isSettingsDialogOpen: false }),
     setLoading: (loading) => set({ isLoading: loading }),
+
+    // === SVN Actions ===
+    setSvnConfig: (config) => set({ svnConfig: config }),
+
+    setSvnFolders: (folders) => set({ svnFolders: folders }),
+
+    setSvnPromptsForFolder: (folderPath, prompts) =>
+        set((state) => ({
+            svnPromptsByFolder: { ...state.svnPromptsByFolder, [folderPath]: prompts },
+        })),
+
+    selectSvnFolder: (folderPath) =>
+        set({
+            selectedSvnFolder: folderPath,
+            selectedSvnPrompt: null,
+            // 切换到 SVN 时清除数据库数据源的选中
+            selectedProjectId: null,
+            selectedTaskId: null,
+            selectedPromptEntryId: null,
+        }),
+
+    selectSvnPrompt: (promptId) => set({
+        selectedSvnPrompt: promptId,
+        // 选中 SVN 提示词时，清除本地提示词的选中状态
+        selectedPromptEntryId: null,
+    }),
+
+    setSvnLoading: (loading) => set({ svnLoading: loading }),
+
+    setSvnError: (error) => set({ svnError: error }),
+
+    toggleSvnFolder: (folderPath) =>
+        set((state) => {
+            const newExpanded = new Set(state.expandedSvnFolders);
+            if (newExpanded.has(folderPath)) {
+                newExpanded.delete(folderPath);
+            } else {
+                newExpanded.add(folderPath);
+            }
+            return { expandedSvnFolders: newExpanded };
+        }),
 
     // === 重置 ===
     reset: () => set(initialState),

@@ -2,3 +2,4 @@
 pub mod project_repository;
 pub mod task_repository;
 pub mod prompt_repository;
+pub mod settings_repository;

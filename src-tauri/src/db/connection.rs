@@ -95,6 +95,27 @@ pub fn init_db(conn: &Connection) -> Result<(), AppError> {
         "#,
     )?;
 
+    // 创建 settings 表（用于存储 SVN 等配置）
+    conn.execute_batch(
+        r#"
+        CREATE TABLE IF NOT EXISTS settings (
+            key         TEXT PRIMARY KEY,
+            value       TEXT NOT NULL,
+            updated_at  TEXT NOT NULL
+        );
+        "#,
+    )?;
+
+    // 初始化默认 SVN 配置（如果不存在）
+    conn.execute(
+        "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('svn_enabled', 'false', datetime('now'))",
+        [],
+    )?;
+    conn.execute(
+        "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES ('svn_repository_url', '', datetime('now'))",
+        [],
+    )?;
+
     Ok(())
 }
 

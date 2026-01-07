@@ -4,3 +4,4 @@ export * from "./tasks";
 export * from "./prompts";
 export * from "./search";
 export * from "./backup";
+export * from "./svn";
