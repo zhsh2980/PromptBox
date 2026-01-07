@@ -64,12 +64,54 @@ pub fn test_repository_connection(url: &str) -> Result<bool, AppError> {
     }
 }
 
+/// 获取本地 SVN 副本的仓库 URL
+fn get_working_copy_url(local_path: &Path) -> Result<String, AppError> {
+    let output = execute_svn_command(&["info", "--show-item", "url", local_path.to_str().unwrap()])?;
+    Ok(output.trim().to_string())
+}
+
 /// 检出或更新 SVN 仓库
 pub fn checkout_or_update_repository(url: &str, local_path: &Path) -> Result<(), AppError> {
     if local_path.exists() {
-        // 本地路径存在，执行 update
-        log::info!("更新 SVN 仓库: {}", local_path.display());
-        execute_svn_command(&["update", local_path.to_str().unwrap()])?;
+        // 检查本地副本的 URL 是否与配置的 URL 一致
+        match get_working_copy_url(local_path) {
+            Ok(working_copy_url) => {
+                if working_copy_url == url {
+                    // URL 一致，执行 update
+                    log::info!("更新 SVN 仓库: {}", local_path.display());
+                    execute_svn_command(&["update", local_path.to_str().unwrap()])?;
+                } else {
+                    // URL 不一致，删除旧副本并重新 checkout
+                    log::warn!(
+                        "SVN 仓库 URL 已变更: {} -> {}，将重新检出",
+                        working_copy_url,
+                        url
+                    );
+                    fs::remove_dir_all(local_path)?;
+
+                    // 确保父目录存在
+                    if let Some(parent) = local_path.parent() {
+                        fs::create_dir_all(parent)?;
+                    }
+
+                    log::info!("检出 SVN 仓库: {} -> {}", url, local_path.display());
+                    execute_svn_command(&["checkout", url, local_path.to_str().unwrap()])?;
+                }
+            }
+            Err(_) => {
+                // 无法获取 working copy URL（可能损坏），删除并重新 checkout
+                log::warn!("本地 SVN 副本可能已损坏，将重新检出");
+                fs::remove_dir_all(local_path)?;
+
+                // 确保父目录存在
+                if let Some(parent) = local_path.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+
+                log::info!("检出 SVN 仓库: {} -> {}", url, local_path.display());
+                execute_svn_command(&["checkout", url, local_path.to_str().unwrap()])?;
+            }
+        }
     } else {
         // 本地路径不存在，执行 checkout
         log::info!("检出 SVN 仓库: {} -> {}", url, local_path.display());
