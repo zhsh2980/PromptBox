@@ -121,7 +121,7 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
     }
 
     return (
-        <div className="svn-project-view border-b pb-2 mb-2">
+        <div className="svn-project-view pb-2 mb-2">
             {/* 标题行 */}
             <div className="flex items-center justify-between p-2 mb-1">
                 <div className="flex items-center gap-2">
