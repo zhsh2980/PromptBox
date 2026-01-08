@@ -109,45 +109,43 @@ export function GlobalSearch({ onSelectResult, isDark = true }: GlobalSearchProp
     };
 
     return (
-        <>
-            {/* 点击外部关闭遮罩层 - 放在最外层确保能捕获点击 */}
-            {isOpen && (
-                <div
-                    className="fixed inset-0 z-40"
-                    onClick={handleClose}
+        <div className="relative">
+            {/* 搜索输入框 */}
+            <div className="relative flex items-center">
+                <Search className={`absolute left-3 w-4 h-4 ${styles.icon}`} />
+                <input
+                    type="text"
+                    data-search-input
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    onFocus={() => {
+                        // 如果有关键词且之前有结果，重新打开面板
+                        if (keyword.trim() && results.length > 0) {
+                            setIsOpen(true);
+                        }
+                    }}
+                    placeholder="搜索提示词"
+                    className={`flex-1 min-w-32 max-w-72 pl-10 pr-8 py-2 border rounded-lg text-sm focus:outline-none focus:border-blue-500 transition-colors ${styles.input}`}
                 />
-            )}
-            <div className="relative z-50">
-                {/* 搜索输入框 */}
-                <div className="relative flex items-center">
-                    <Search className={`absolute left-3 w-4 h-4 ${styles.icon}`} />
-                    <input
-                        type="text"
-                        data-search-input
-                        value={keyword}
-                        onChange={(e) => setKeyword(e.target.value)}
-                        onFocus={() => {
-                            // 如果有关键词且之前有结果，重新打开面板
-                            if (keyword.trim() && results.length > 0) {
-                                setIsOpen(true);
-                            }
-                        }}
-                        placeholder="搜索提示词"
-                        className={`flex-1 min-w-32 max-w-72 pl-10 pr-8 py-2 border rounded-lg text-sm focus:outline-none focus:border-blue-500 transition-colors ${styles.input}`}
-                    />
-                    {keyword && (
-                        <button
-                            onClick={handleClose}
-                            className={`absolute right-2 ${styles.icon} ${styles.iconHover}`}
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-                    )}
-                </div>
+                {keyword && (
+                    <button
+                        onClick={handleClose}
+                        className={`absolute right-2 ${styles.icon} ${styles.iconHover}`}
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                )}
+            </div>
 
-                {/* 搜索结果面板 - 横向居中对齐 */}
-                {isOpen && results.length > 0 && (
-                    <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[400px] mt-2 border rounded-lg shadow-xl max-h-96 overflow-y-auto ${styles.panel}`}>
+            {/* 搜索结果面板 - 横向居中对齐 */}
+            {isOpen && results.length > 0 && (
+                <>
+                    {/* 点击外部关闭遮罩层 */}
+                    <div className="fixed inset-0 z-40" onClick={handleClose} />
+                    <div
+                        className={`absolute top-full left-1/2 -translate-x-1/2 w-[400px] mt-2 border rounded-lg shadow-xl max-h-96 overflow-y-auto z-50 ${isDark ? "bg-zinc-800 border-zinc-600" : "bg-white border-slate-200"}`}
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <div className={`p-2 border-b text-xs ${styles.panelBorder} ${styles.panelText}`}>
                             找到 {results.length} 条结果
                         </div>
@@ -187,25 +185,37 @@ export function GlobalSearch({ onSelectResult, isDark = true }: GlobalSearchProp
                             </div>
                         ))}
                     </div>
-                )}
+                </>
+            )}
 
-                {/* 无结果提示 - 横向居中对齐 */}
-                {isOpen && keyword && results.length === 0 && !loading && (
-                    <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[400px] mt-2 border rounded-lg shadow-xl p-4 text-center text-sm ${styles.panel} ${styles.panelText}`}>
+            {/* 无结果提示 - 横向居中对齐 */}
+            {isOpen && keyword && results.length === 0 && !loading && (
+                <>
+                    <div className="fixed inset-0 z-40" onClick={handleClose} />
+                    <div
+                        className={`absolute top-full left-1/2 -translate-x-1/2 w-[400px] mt-2 border rounded-lg shadow-xl p-4 text-center text-sm z-50 ${isDark ? "bg-zinc-800 border-zinc-600" : "bg-white border-slate-200"} ${styles.panelText}`}
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         未找到匹配的提示词
                     </div>
-                )}
+                </>
+            )}
 
-                {/* 加载中 - 横向居中对齐 */}
-                {loading && (
-                    <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[400px] mt-2 border rounded-lg shadow-xl p-4 text-center text-sm ${styles.panel} ${styles.panelText}`}>
+            {/* 加载中 - 横向居中对齐 */}
+            {loading && (
+                <>
+                    <div className="fixed inset-0 z-40" onClick={handleClose} />
+                    <div
+                        className={`absolute top-full left-1/2 -translate-x-1/2 w-[400px] mt-2 border rounded-lg shadow-xl p-4 text-center text-sm z-50 ${isDark ? "bg-zinc-800 border-zinc-600" : "bg-white border-slate-200"} ${styles.panelText}`}
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         <div className="flex items-center justify-center gap-2">
                             <div className={`w-4 h-4 border-2 rounded-full animate-spin ${isDark ? "border-zinc-500 border-t-blue-500" : "border-slate-300 border-t-blue-500"}`} />
                             搜索中...
                         </div>
                     </div>
-                )}
-            </div>
-        </>
+                </>
+            )}
+        </div>
     );
 }
