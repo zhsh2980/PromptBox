@@ -981,8 +981,10 @@ function App() {
                         }
                       }}
                       placeholder="输入标题..."
-                      className={`flex-1 text-xl font-semibold bg-transparent border-none outline-none ${isDark ? "text-white placeholder-zinc-600" : "text-slate-900 placeholder-slate-400"
-                        }`}
+                      className={`flex-1 text-xl font-semibold bg-transparent border-b border-dashed outline-none px-1 py-0.5 transition-all hover:border-solid hover:bg-opacity-50 focus:border-solid focus:border-blue-500 ${isDark
+                        ? "text-white placeholder-zinc-600 border-zinc-600 hover:bg-zinc-700/30"
+                        : "text-slate-900 placeholder-slate-400 border-slate-300 hover:bg-slate-100"
+                      }`}
                     />
                     <button
                       onClick={() => handleCopyPrompt(selectedPrompt.content)}
