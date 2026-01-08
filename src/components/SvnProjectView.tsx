@@ -238,12 +238,14 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
                         {/* 项目项 (第一层) */}
                         <div
                             className={`
-                                flex items-center gap-1 px-2 pl-4 py-2 cursor-pointer
+                                flex items-center gap-1 px-2 py-2 cursor-pointer
                                 transition-colors group relative
                                 ${selectedSvnFolder === project.path ? styles.listItemActive : styles.listItem}
                             `}
                             onClick={() => handleProjectClick(project)}
                         >
+                            {/* 占位：与本地Prompts的拖动手柄对齐 */}
+                            <div className="w-5 flex-shrink-0" />
                             <button
                                 className={`p-0.5 rounded flex-shrink-0 ${styles.buttonHover}`}
                                 onClick={(e) => {
@@ -263,7 +265,7 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
 
                         {/* 任务列表 (第二层) - 不展开，点击后在中间列显示提示词 */}
                         {isProjectExpanded && (
-                            <div className="ml-4">
+                            <div className="ml-6">
                                 {svnLoading && tasks.length === 0 && (
                                     <div className={`px-2 py-1 text-xs ${styles.textMuted}`}>
                                         加载中...
@@ -280,12 +282,14 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
                                     <div
                                         key={task.path}
                                         className={`
-                                            flex items-center gap-2 px-2 pl-6 py-1.5 cursor-pointer
+                                            flex items-center gap-1 px-2 py-1.5 cursor-pointer
                                             transition-colors group relative
-                                            ${selectedSvnTask === task.path ? styles.listItemActive : styles.listItem}
+                                            ${selectedSvnTask === task.path ? styles.listItemActiveTask : styles.listItem}
                                         `}
                                         onClick={() => handleTaskClick(task)}
                                     >
+                                        {/* 占位：与本地Prompts的拖动手柄对齐 */}
+                                        <div className="w-4 flex-shrink-0" />
                                         <Folder className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0" />
                                         <span className={`flex-1 text-sm truncate ${styles.textSecondary}`}>{task.name}</span>
                                     </div>
