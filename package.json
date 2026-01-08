@@ -4,8 +4,9 @@
   "version": "1.0.10",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "sync-version": "node scripts/sync-version.js",
+    "dev": "npm run sync-version && vite",
+    "build": "npm run sync-version && tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri"
   },
