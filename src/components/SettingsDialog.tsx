@@ -5,9 +5,10 @@ import { useAppStore } from "../store";
 import { save, open } from "@tauri-apps/plugin-dialog";
 import { toast } from "./Toast";
 import type { SvnConfig } from "../types";
+import packageJson from "../../package.json";
 
-// 从 package.json 导入版本号
-const APP_VERSION = "1.0.8";
+// 从 package.json 动态读取版本号
+const APP_VERSION = packageJson.version;
 
 interface SettingsDialogProps {
     isOpen: boolean;
