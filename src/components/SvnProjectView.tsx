@@ -1,6 +1,6 @@
-// SVN 共享 Prompts 视图组件
+// SVN 共享 Prompts 视图组件 (3层结构: Project -> Task -> Prompt)
 import { useState, useEffect } from "react";
-import { ChevronDown, ChevronRight, FolderGit2, RefreshCw, AlertCircle, FileText } from "lucide-react";
+import { ChevronDown, ChevronRight, FolderGit2, RefreshCw, AlertCircle, FileText, Folder } from "lucide-react";
 import { useAppStore } from "../store/appStore";
 import { SvnApi } from "../tauri-api";
 import { toast } from "./Toast";
@@ -15,20 +15,26 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
     const {
         svnConfig,
         svnFolders,
-        svnPromptsByFolder,
+        svnTasksByProject,
+        svnPromptsByTask,
         selectedSvnFolder,
+        selectedSvnTask,
         selectedSvnPrompt,
         svnLoading,
         svnError,
         expandedSvnFolders,
+        expandedSvnTasks,
         setSvnConfig,
         setSvnFolders,
-        setSvnPromptsForFolder,
+        setSvnTasksForProject,
+        setSvnPromptsForTask,
         selectSvnFolder,
+        selectSvnTask,
         selectSvnPrompt,
         setSvnLoading,
         setSvnError,
         toggleSvnFolder,
+        toggleSvnTask,
     } = useAppStore();
 
     const [refreshing, setRefreshing] = useState(false);
@@ -43,32 +49,46 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
             const config = await SvnApi.getConfig();
             setSvnConfig(config);
 
-            // 如果启用且配置了仓库，自动加载文件夹
+            // 如果启用且配置了仓库，自动加载项目
             if (config.enabled && config.repository_url) {
-                await loadFolders();
+                await loadProjects();
             }
         } catch (error) {
             console.error("加载 SVN 配置失败:", error);
         }
     };
 
-    const loadFolders = async () => {
+    const loadProjects = async () => {
         try {
             setSvnError(null);
-            const folders = await SvnApi.getFolders();
-            setSvnFolders(folders);
+            const projects = await SvnApi.getFolders();
+            setSvnFolders(projects);
         } catch (error: any) {
-            console.error("加载 SVN 文件夹失败:", error);
-            setSvnError(error.message || "加载文件夹失败");
+            console.error("加载 SVN 项目失败:", error);
+            setSvnError(error.message || "加载项目失败");
         }
     };
 
-    const loadPromptsForFolder = async (folder: SvnFolder) => {
+    const loadTasksForProject = async (project: SvnFolder) => {
         try {
             setSvnLoading(true);
             setSvnError(null);
-            const prompts = await SvnApi.getPromptsForFolder(folder.path);
-            setSvnPromptsForFolder(folder.path, prompts);
+            const tasks = await SvnApi.getTasksForProject(project.path);
+            setSvnTasksForProject(project.path, tasks);
+        } catch (error: any) {
+            console.error("加载任务失败:", error);
+            setSvnError(error.message || "加载任务失败");
+        } finally {
+            setSvnLoading(false);
+        }
+    };
+
+    const loadPromptsForTask = async (task: SvnFolder) => {
+        try {
+            setSvnLoading(true);
+            setSvnError(null);
+            const prompts = await SvnApi.getPromptsForTask(task.path);
+            setSvnPromptsForTask(task.path, prompts);
         } catch (error: any) {
             console.error("加载提示词失败:", error);
             setSvnError(error.message || "加载提示词失败");
@@ -82,15 +102,25 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
             setRefreshing(true);
             setSvnError(null);
             await SvnApi.refreshData();
-            await loadFolders();
+            await loadProjects();
 
-            // 重新加载已展开文件夹的提示词
-            for (const folderPath of Array.from(expandedSvnFolders)) {
-                const folder = svnFolders.find((f) => f.path === folderPath);
-                if (folder) {
-                    await loadPromptsForFolder(folder);
+            // 重新加载已展开项目的任务
+            for (const projectPath of Array.from(expandedSvnFolders)) {
+                const project = svnFolders.find((p) => p.path === projectPath);
+                if (project) {
+                    await loadTasksForProject(project);
                 }
             }
+
+            // 重新加载已展开任务的提示词
+            for (const taskPath of Array.from(expandedSvnTasks)) {
+                const tasks = Object.values(svnTasksByProject).flat();
+                const task = tasks.find((t) => t.path === taskPath);
+                if (task) {
+                    await loadPromptsForTask(task);
+                }
+            }
+
             toast.success("刷新成功");
         } catch (error: any) {
             console.error("刷新 SVN 数据失败:", error);
@@ -101,13 +131,23 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
         }
     };
 
-    const handleFolderClick = (folder: SvnFolder) => {
-        toggleSvnFolder(folder.path);
+    const handleProjectClick = (project: SvnFolder) => {
+        toggleSvnFolder(project.path);
+
+        // 如果正在展开且未加载过，则加载任务
+        if (!expandedSvnFolders.has(project.path)) {
+            loadTasksForProject(project);
+            selectSvnFolder(project.path);
+        }
+    };
+
+    const handleTaskClick = (task: SvnFolder) => {
+        toggleSvnTask(task.path);
 
         // 如果正在展开且未加载过，则加载提示词
-        if (!expandedSvnFolders.has(folder.path)) {
-            loadPromptsForFolder(folder);
-            selectSvnFolder(folder.path);
+        if (!expandedSvnTasks.has(task.path)) {
+            loadPromptsForTask(task);
+            selectSvnTask(task.path);
         }
     };
 
@@ -155,74 +195,126 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
                 </div>
             )}
 
-            {/* 文件夹列表 */}
+            {/* 项目列表 */}
             {svnConfig.repository_url && svnFolders.length === 0 && !svnError && (
                 <div className="px-2 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                    暂无文件夹
+                    暂无项目
                 </div>
             )}
 
-            {svnFolders.map((folder) => {
-                const isExpanded = expandedSvnFolders.has(folder.path);
-                const prompts = svnPromptsByFolder[folder.path] || [];
+            {svnFolders.map((project) => {
+                const isProjectExpanded = expandedSvnFolders.has(project.path);
+                const tasks = svnTasksByProject[project.path] || [];
 
                 return (
-                    <div key={folder.path}>
-                        {/* 文件夹项 */}
+                    <div key={project.path}>
+                        {/* 项目项 (第一层) */}
                         <div
                             className={`
-                                flex items-center gap-1 px-2 pl-8 py-2 cursor-pointer
+                                flex items-center gap-1 px-2 pl-4 py-2 cursor-pointer
                                 transition-colors group relative
-                                ${selectedSvnFolder === folder.path ? styles.listItemActive : styles.listItem}
+                                ${selectedSvnFolder === project.path ? styles.listItemActive : styles.listItem}
                             `}
-                            onClick={() => handleFolderClick(folder)}
+                            onClick={() => handleProjectClick(project)}
                         >
                             <button
                                 className={`p-0.5 rounded flex-shrink-0 ${styles.buttonHover}`}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    handleFolderClick(folder);
+                                    handleProjectClick(project);
                                 }}
                             >
-                                {isExpanded ? (
+                                {isProjectExpanded ? (
                                     <ChevronDown className={`w-4 h-4 ${styles.iconMuted}`} />
                                 ) : (
                                     <ChevronRight className={`w-4 h-4 ${styles.iconMuted}`} />
                                 )}
                             </button>
                             <FolderGit2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                            <span className="flex-1 text-sm truncate">{folder.name}</span>
+                            <span className="flex-1 text-sm truncate">{project.name}</span>
                         </div>
 
-                        {/* 提示词列表 */}
-                        {isExpanded && (
-                            <div className="ml-6">
-                                {svnLoading && prompts.length === 0 && (
+                        {/* 任务列表 (第二层) */}
+                        {isProjectExpanded && (
+                            <div className="ml-4">
+                                {svnLoading && tasks.length === 0 && (
                                     <div className={`px-2 py-1 text-xs ${styles.textMuted}`}>
                                         加载中...
                                     </div>
                                 )}
 
-                                {prompts.map((prompt) => (
-                                    <div
-                                        key={prompt.id}
-                                        className={`
-                                            flex items-center gap-1 px-2 py-1.5 cursor-pointer
-                                            transition-colors group relative
-                                            ${selectedSvnPrompt === prompt.id ? styles.listItemActiveTask : styles.listItem}
-                                        `}
-                                        onClick={() => handlePromptClick(prompt)}
-                                    >
-                                        <FileText className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                                        <span className={`flex-1 text-sm truncate ${styles.textSecondary}`}>{prompt.title}</span>
-                                    </div>
-                                ))}
-
-                                {prompts.length === 0 && !svnLoading && (
+                                {tasks.length === 0 && !svnLoading && (
                                     <div className={`px-2 py-1 text-xs ${styles.textMuted}`}>
-                                        暂无提示词
+                                        暂无任务
                                     </div>
                                 )}
+
+                                {tasks.map((task) => {
+                                    const isTaskExpanded = expandedSvnTasks.has(task.path);
+                                    const prompts = svnPromptsByTask[task.path] || [];
+
+                                    return (
+                                        <div key={task.path}>
+                                            {/* 任务项 */}
+                                            <div
+                                                className={`
+                                                    flex items-center gap-1 px-2 pl-4 py-1.5 cursor-pointer
+                                                    transition-colors group relative
+                                                    ${selectedSvnTask === task.path ? styles.listItemActive : styles.listItem}
+                                                `}
+                                                onClick={() => handleTaskClick(task)}
+                                            >
+                                                <button
+                                                    className={`p-0.5 rounded flex-shrink-0 ${styles.buttonHover}`}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleTaskClick(task);
+                                                    }}
+                                                >
+                                                    {isTaskExpanded ? (
+                                                        <ChevronDown className={`w-3.5 h-3.5 ${styles.iconMuted}`} />
+                                                    ) : (
+                                                        <ChevronRight className={`w-3.5 h-3.5 ${styles.iconMuted}`} />
+                                                    )}
+                                                </button>
+                                                <Folder className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0" />
+                                                <span className={`flex-1 text-sm truncate ${styles.textSecondary}`}>{task.name}</span>
+                                            </div>
+
+                                            {/* 提示词列表 (第三层) */}
+                                            {isTaskExpanded && (
+                                                <div className="ml-4">
+                                                    {svnLoading && prompts.length === 0 && (
+                                                        <div className={`px-2 py-1 text-xs ${styles.textMuted}`}>
+                                                            加载中...
+                                                        </div>
+                                                    )}
+
+                                                    {prompts.length === 0 && !svnLoading && (
+                                                        <div className={`px-2 py-1 text-xs ${styles.textMuted}`}>
+                                                            暂无提示词
+                                                        </div>
+                                                    )}
+
+                                                    {prompts.map((prompt) => (
+                                                        <div
+                                                            key={prompt.id}
+                                                            className={`
+                                                                flex items-center gap-1 px-2 pl-4 py-1.5 cursor-pointer
+                                                                transition-colors group relative
+                                                                ${selectedSvnPrompt === prompt.id ? styles.listItemActiveTask : styles.listItem}
+                                                            `}
+                                                            onClick={() => handlePromptClick(prompt)}
+                                                        >
+                                                            <FileText className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                                                            <span className={`flex-1 text-sm truncate ${styles.textSecondary}`}>{prompt.title}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>

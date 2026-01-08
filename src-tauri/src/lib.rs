@@ -85,6 +85,8 @@ pub fn run() {
             test_svn_connection,
             refresh_svn_data,
             get_svn_folders,
+            get_svn_tasks_for_project,
+            get_svn_prompts_for_task,
             get_svn_prompts_for_folder,
         ])
         .run(tauri::generate_context!())

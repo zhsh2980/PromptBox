@@ -217,7 +217,7 @@ fn parse_prompt_file(file_path: &Path, folder_path: &str) -> Result<SvnPrompt, A
     })
 }
 
-/// 获取所有文件夹
+/// 获取所有项目文件夹（第一层目录）
 pub fn get_folders(local_path: &Path) -> Result<Vec<SvnFolder>, AppError> {
     if !local_path.exists() {
         return Ok(Vec::new());
@@ -260,6 +260,85 @@ pub fn get_folders(local_path: &Path) -> Result<Vec<SvnFolder>, AppError> {
     folders.sort_by(|a, b| a.name.cmp(&b.name));
 
     Ok(folders)
+}
+
+/// 获取项目下的任务文件夹（第二层目录）
+pub fn get_subfolders(folder_path: &Path) -> Result<Vec<SvnFolder>, AppError> {
+    if !folder_path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut subfolders = Vec::new();
+
+    // 只遍历该目录下的子目录
+    for entry in fs::read_dir(folder_path)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        // 跳过 .svn 目录
+        if path.file_name().unwrap_or_default() == ".svn" {
+            continue;
+        }
+
+        if path.is_dir() {
+            let name = path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("未命名")
+                .to_string();
+
+            subfolders.push(SvnFolder {
+                name,
+                path: path.to_string_lossy().to_string(),
+                full_path: path.to_string_lossy().to_string(),
+            });
+        }
+    }
+
+    // 按名称排序
+    subfolders.sort_by(|a, b| a.name.cmp(&b.name));
+
+    Ok(subfolders)
+}
+
+/// 获取任务文件夹中的提示词文件（仅当前目录，不递归）
+pub fn get_prompts_in_task_folder(folder_path: &Path, relative_folder_path: &str) -> Result<Vec<SvnPrompt>, AppError> {
+    if !folder_path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut prompts = Vec::new();
+
+    // 只遍历当前文件夹中的文件（不递归）
+    for entry in fs::read_dir(folder_path)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        // 跳过 .svn 目录
+        if path.to_string_lossy().contains(".svn") {
+            continue;
+        }
+
+        // 只处理文件（.md, .txt, .yaml, .yml）
+        if path.is_file() {
+            if let Some(extension) = path.extension() {
+                let ext = extension.to_string_lossy().to_lowercase();
+                if ext == "md" || ext == "txt" || ext == "yaml" || ext == "yml" {
+                    match parse_prompt_file(&path, relative_folder_path) {
+                        Ok(prompt) => prompts.push(prompt),
+                        Err(e) => {
+                            log::warn!("解析文件失败 {}: {}", path.display(), e);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 按标题排序
+    prompts.sort_by(|a, b| a.title.cmp(&b.title));
+
+    Ok(prompts)
 }
 
 /// 获取文件夹中的所有提示词文件

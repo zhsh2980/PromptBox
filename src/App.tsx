@@ -48,7 +48,7 @@ function App() {
     selectedPromptEntryId,
     selectPrompt,
     // SVN 相关
-    svnPromptsByFolder,
+    svnPromptsByTask,
     selectedSvnPrompt,
     selectSvnPrompt,
     toggleSvnFolder,
@@ -878,7 +878,7 @@ function App() {
                 // 查找当前选中的 SVN 提示词
                 let selectedSvnPromptObj: SvnPrompt | null = null;
                 if (selectedSvnPrompt) {
-                  for (const prompts of Object.values(svnPromptsByFolder)) {
+                  for (const prompts of Object.values(svnPromptsByTask)) {
                     const found = prompts.find((p) => p.id === selectedSvnPrompt);
                     if (found) {
                       selectedSvnPromptObj = found;
