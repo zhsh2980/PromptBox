@@ -127,12 +127,23 @@ A: 尝试在终端按 `Ctrl + C` 停止应用，然后重新运行 `npm run taur
 
 项目配置了 GitHub Actions 自动构建，支持 macOS (Intel/ARM) 和 Windows 平台。
 
+### 版本号管理
+
+版本号统一在 `src-tauri/Cargo.toml` 中配置：
+
+```toml
+[package]
+version = "1.0.10"
+```
+
+运行 `npm run dev` 或 `npm run build` 时会自动同步版本号到 `package.json`。
+
+> **注意**：只需修改 `Cargo.toml` 中的版本号，无需手动修改其他文件。
+
 ### 自动构建流程
 
-1. **更新版本号**（三个文件需同步修改）：
-   - `package.json` - `version` 字段
-   - `src-tauri/tauri.conf.json` - `version` 字段
-   - `src-tauri/Cargo.toml` - `version` 字段
+1. **更新版本号**：
+   修改 `src-tauri/Cargo.toml` 中的 `version` 字段
 
 2. **提交并创建版本标签**：
    ```bash
