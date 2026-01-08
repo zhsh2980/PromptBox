@@ -17,6 +17,8 @@ import {
   ArrowUpDown,
   Clock,
   Tag,
+  ChevronsDownUp,
+  ChevronsUpDown,
 } from "lucide-react";
 import { ProjectApi, TaskApi, PromptApi } from "./tauri-api";
 import { useAppStore } from "./store";
@@ -494,6 +496,26 @@ function App() {
     });
   }
 
+  // 折叠所有本地项目
+  function collapseAllProjects() {
+    setExpandedProjects(new Set());
+    localStorage.setItem("expandedProjects", JSON.stringify([]));
+  }
+
+  // 展开所有本地项目
+  async function expandAllProjects() {
+    const allProjectIds = projects.map((p) => p.id);
+    setExpandedProjects(new Set(allProjectIds));
+    localStorage.setItem("expandedProjects", JSON.stringify(allProjectIds));
+
+    // 加载所有项目的任务（如果尚未加载）
+    for (const projectId of allProjectIds) {
+      if (!tasksByProject[projectId]) {
+        await loadTasks(projectId);
+      }
+    }
+  }
+
   // dnd-kit 项目排序处理
   const handleProjectsReorder = async (newOrder: number[]) => {
     try {
@@ -664,6 +686,24 @@ function App() {
                 <div className="flex items-center gap-2">
                   <FolderKanban className="w-4 h-4 text-green-500" />
                   <span className="font-semibold text-sm">本地Prompts</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={collapseAllProjects}
+                    disabled={projects.length === 0}
+                    className={`p-1 rounded transition-colors disabled:opacity-50 ${styles.buttonHover}`}
+                    title="折叠全部"
+                  >
+                    <ChevronsDownUp className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={expandAllProjects}
+                    disabled={projects.length === 0}
+                    className={`p-1 rounded transition-colors disabled:opacity-50 ${styles.buttonHover}`}
+                    title="展开全部"
+                  >
+                    <ChevronsUpDown className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 

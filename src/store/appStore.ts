@@ -81,6 +81,8 @@ interface AppState {
     setSvnError: (error: string | null) => void;
     toggleSvnFolder: (folderPath: string) => void;
     toggleSvnTask: (taskPath: string) => void;
+    collapseAllSvnFolders: () => void;
+    expandAllSvnFolders: (folderPaths: string[]) => void;
 
     // 重置
     reset: () => void;
@@ -315,6 +317,12 @@ export const useAppStore = create<AppState>((set) => ({
             }
             return { expandedSvnTasks: newExpanded };
         }),
+
+    collapseAllSvnFolders: () =>
+        set({ expandedSvnFolders: new Set<string>() }),
+
+    expandAllSvnFolders: (folderPaths) =>
+        set({ expandedSvnFolders: new Set(folderPaths) }),
 
     // === 重置 ===
     reset: () => set(initialState),

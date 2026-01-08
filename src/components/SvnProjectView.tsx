@@ -1,7 +1,7 @@
 // SVN 共享 Prompts 视图组件 (3层结构: Project -> Task -> Prompt)
 // 左侧只显示2层（Project -> Task），点击Task后在中间列显示提示词
 import { useState, useEffect } from "react";
-import { ChevronDown, ChevronRight, FolderGit2, RefreshCw, AlertCircle, Folder } from "lucide-react";
+import { ChevronDown, ChevronRight, FolderGit2, RefreshCw, AlertCircle, Folder, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { useAppStore } from "../store/appStore";
 import { SvnApi } from "../tauri-api";
 import { toast } from "./Toast";
@@ -31,6 +31,8 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
         setSvnLoading,
         setSvnError,
         toggleSvnFolder,
+        collapseAllSvnFolders,
+        expandAllSvnFolders,
     } = useAppStore();
 
     const [refreshing, setRefreshing] = useState(false);
@@ -143,6 +145,25 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
         loadPromptsForTask(task);
     };
 
+    // 折叠所有项目
+    const handleCollapseAll = () => {
+        collapseAllSvnFolders();
+    };
+
+    // 展开所有项目
+    const handleExpandAll = async () => {
+        // 获取所有项目的路径
+        const allPaths = svnFolders.map((p) => p.path);
+        expandAllSvnFolders(allPaths);
+
+        // 加载所有项目的任务（如果尚未加载）
+        for (const project of svnFolders) {
+            if (!svnTasksByProject[project.path]) {
+                await loadTasksForProject(project);
+            }
+        }
+    };
+
     // 如果未启用，不显示
     if (!svnConfig?.enabled) {
         return null;
@@ -156,16 +177,34 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
                     <FolderGit2 className="w-4 h-4 text-blue-500" />
                     <span className="font-semibold text-sm">共享Prompts</span>
                 </div>
-                <button
-                    onClick={handleRefresh}
-                    disabled={refreshing || !svnConfig.repository_url}
-                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
-                    title="刷新 SVN 数据"
-                >
-                    <RefreshCw
-                        className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
-                    />
-                </button>
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={handleCollapseAll}
+                        disabled={!svnConfig.repository_url || svnFolders.length === 0}
+                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
+                        title="折叠全部"
+                    >
+                        <ChevronsDownUp className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={handleExpandAll}
+                        disabled={!svnConfig.repository_url || svnFolders.length === 0}
+                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
+                        title="展开全部"
+                    >
+                        <ChevronsUpDown className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={handleRefresh}
+                        disabled={refreshing || !svnConfig.repository_url}
+                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
+                        title="刷新 SVN 数据"
+                    >
+                        <RefreshCw
+                            className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
+                        />
+                    </button>
+                </div>
             </div>
 
             {/* 错误提示 */}
