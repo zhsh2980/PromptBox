@@ -23,15 +23,18 @@ interface AppState {
     isGlobalSearchPanelOpen: boolean;
     isLoading: boolean;
 
-    // === SVN 数据 ===
+    // === SVN 数据 (3层结构: Project -> Task -> Prompt) ===
     svnConfig: SvnConfig | null;
-    svnFolders: SvnFolder[];
-    svnPromptsByFolder: Record<string, SvnPrompt[]>;
-    selectedSvnFolder: string | null;
+    svnFolders: SvnFolder[];  // 第一层：项目
+    svnTasksByProject: Record<string, SvnFolder[]>;  // 第二层：任务
+    svnPromptsByTask: Record<string, SvnPrompt[]>;  // 第三层：提示词
+    selectedSvnFolder: string | null;  // 选中的项目
+    selectedSvnTask: string | null;  // 选中的任务
     selectedSvnPrompt: string | null;
     svnLoading: boolean;
     svnError: string | null;
-    expandedSvnFolders: Set<string>;
+    expandedSvnFolders: Set<string>;  // 展开的项目
+    expandedSvnTasks: Set<string>;  // 展开的任务
 
     // === Actions ===
     // 项目相关
@@ -66,15 +69,20 @@ interface AppState {
     closeSettingsDialog: () => void;
     setLoading: (loading: boolean) => void;
 
-    // SVN 相关
+    // SVN 相关 (3层结构)
     setSvnConfig: (config: SvnConfig | null) => void;
     setSvnFolders: (folders: SvnFolder[]) => void;
-    setSvnPromptsForFolder: (folderPath: string, prompts: SvnPrompt[]) => void;
+    setSvnTasksForProject: (projectPath: string, tasks: SvnFolder[]) => void;
+    setSvnPromptsForTask: (taskPath: string, prompts: SvnPrompt[]) => void;
     selectSvnFolder: (folderPath: string | null) => void;
+    selectSvnTask: (taskPath: string | null) => void;
     selectSvnPrompt: (promptId: string | null) => void;
     setSvnLoading: (loading: boolean) => void;
     setSvnError: (error: string | null) => void;
     toggleSvnFolder: (folderPath: string) => void;
+    toggleSvnTask: (taskPath: string) => void;
+    collapseAllSvnFolders: () => void;
+    expandAllSvnFolders: (folderPaths: string[]) => void;
 
     // 重置
     reset: () => void;
@@ -94,12 +102,15 @@ const initialState = {
     isLoading: false,
     svnConfig: null,
     svnFolders: [],
-    svnPromptsByFolder: {},
+    svnTasksByProject: {},
+    svnPromptsByTask: {},
     selectedSvnFolder: null,
+    selectedSvnTask: null,
     selectedSvnPrompt: null,
     svnLoading: false,
     svnError: null,
     expandedSvnFolders: new Set<string>(),
+    expandedSvnTasks: new Set<string>(),
 };
 
 export const useAppStore = create<AppState>((set) => ({
@@ -239,21 +250,37 @@ export const useAppStore = create<AppState>((set) => ({
     closeSettingsDialog: () => set({ isSettingsDialogOpen: false }),
     setLoading: (loading) => set({ isLoading: loading }),
 
-    // === SVN Actions ===
+    // === SVN Actions (3层结构) ===
     setSvnConfig: (config) => set({ svnConfig: config }),
 
     setSvnFolders: (folders) => set({ svnFolders: folders }),
 
-    setSvnPromptsForFolder: (folderPath, prompts) =>
+    setSvnTasksForProject: (projectPath, tasks) =>
         set((state) => ({
-            svnPromptsByFolder: { ...state.svnPromptsByFolder, [folderPath]: prompts },
+            svnTasksByProject: { ...state.svnTasksByProject, [projectPath]: tasks },
+        })),
+
+    setSvnPromptsForTask: (taskPath, prompts) =>
+        set((state) => ({
+            svnPromptsByTask: { ...state.svnPromptsByTask, [taskPath]: prompts },
         })),
 
     selectSvnFolder: (folderPath) =>
         set({
             selectedSvnFolder: folderPath,
+            selectedSvnTask: null,
             selectedSvnPrompt: null,
             // 切换到 SVN 时清除数据库数据源的选中
+            selectedProjectId: null,
+            selectedTaskId: null,
+            selectedPromptEntryId: null,
+        }),
+
+    selectSvnTask: (taskPath) =>
+        set({
+            selectedSvnTask: taskPath,
+            selectedSvnPrompt: null,
+            // 选中 SVN 任务时，清除本地的选中状态
             selectedProjectId: null,
             selectedTaskId: null,
             selectedPromptEntryId: null,
@@ -279,6 +306,23 @@ export const useAppStore = create<AppState>((set) => ({
             }
             return { expandedSvnFolders: newExpanded };
         }),
+
+    toggleSvnTask: (taskPath) =>
+        set((state) => {
+            const newExpanded = new Set(state.expandedSvnTasks);
+            if (newExpanded.has(taskPath)) {
+                newExpanded.delete(taskPath);
+            } else {
+                newExpanded.add(taskPath);
+            }
+            return { expandedSvnTasks: newExpanded };
+        }),
+
+    collapseAllSvnFolders: () =>
+        set({ expandedSvnFolders: new Set<string>() }),
+
+    expandAllSvnFolders: (folderPaths) =>
+        set({ expandedSvnFolders: new Set(folderPaths) }),
 
     // === 重置 ===
     reset: () => set(initialState),

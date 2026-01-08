@@ -17,6 +17,8 @@ import {
   ArrowUpDown,
   Clock,
   Tag,
+  ChevronsDownUp,
+  ChevronsUpDown,
 } from "lucide-react";
 import { ProjectApi, TaskApi, PromptApi } from "./tauri-api";
 import { useAppStore } from "./store";
@@ -48,7 +50,8 @@ function App() {
     selectedPromptEntryId,
     selectPrompt,
     // SVN 相关
-    svnPromptsByFolder,
+    svnPromptsByTask,
+    selectedSvnTask,
     selectedSvnPrompt,
     selectSvnPrompt,
     toggleSvnFolder,
@@ -220,6 +223,10 @@ function App() {
   const [editingPromptContent, setEditingPromptContent] = useState("");
   const [editingPromptTitle, setEditingPromptTitle] = useState("");
   const [editingPromptTags, setEditingPromptTags] = useState("");
+  // 原始内容（用于判断是否有变化）
+  const [originalPromptContent, setOriginalPromptContent] = useState("");
+  const [originalPromptTitle, setOriginalPromptTitle] = useState("");
+  const [originalPromptTags, setOriginalPromptTags] = useState("");
 
   // 加载项目列表
   useEffect(() => {
@@ -386,22 +393,46 @@ function App() {
     const hasContent = editingPromptContent.trim().length > 0;
     if (!hasTitle && !hasContent) return;
 
+    // 比较内容是否有变化
+    const contentToSave = editingPromptContent.trim() ? editingPromptContent : " ";
+    const currentTags = parseTags(editingPromptTags);
+    const currentTagsStr = currentTags.join(", ");
+
+    const contentChanged = contentToSave !== originalPromptContent;
+    const titleChanged = editingPromptTitle !== originalPromptTitle;
+    const tagsChanged = currentTagsStr !== originalPromptTags;
+
+    // 如果没有任何变化，不保存也不提示
+    if (!contentChanged && !titleChanged && !tagsChanged) {
+      return;
+    }
+
     try {
-      const tags = parseTags(editingPromptTags);
-      // 如果内容为空，使用空格（后端需要非空）
-      const contentToSave = editingPromptContent.trim() ? editingPromptContent : " ";
       await PromptApi.update({
         id,
         content: contentToSave,
         title: editingPromptTitle || undefined,
-        tags: tags.length > 0 ? tags : undefined,
+        tags: currentTags.length > 0 ? currentTags : undefined,
       });
       updatePrompt(id, {
         content: contentToSave,
         title: editingPromptTitle || undefined,
-        tags: tags.length > 0 ? tags : undefined,
+        tags: currentTags.length > 0 ? currentTags : undefined,
       });
-      toast.success("已保存");
+
+      // 判断是首次创建还是修改
+      // 首次创建：原始内容为空或只有空格
+      const isNewPrompt = !originalPromptContent.trim() || originalPromptContent.trim() === "";
+      if (isNewPrompt) {
+        toast.success("已保存");
+      } else {
+        toast.success("已修改");
+      }
+
+      // 更新原始内容为当前内容
+      setOriginalPromptContent(contentToSave);
+      setOriginalPromptTitle(editingPromptTitle);
+      setOriginalPromptTags(currentTagsStr);
     } catch (e) {
       toast.error("保存失败");
       console.error(e);
@@ -463,6 +494,26 @@ function App() {
       localStorage.setItem("expandedProjects", JSON.stringify([...next]));
       return next;
     });
+  }
+
+  // 折叠所有本地项目
+  function collapseAllProjects() {
+    setExpandedProjects(new Set());
+    localStorage.setItem("expandedProjects", JSON.stringify([]));
+  }
+
+  // 展开所有本地项目
+  async function expandAllProjects() {
+    const allProjectIds = projects.map((p) => p.id);
+    setExpandedProjects(new Set(allProjectIds));
+    localStorage.setItem("expandedProjects", JSON.stringify(allProjectIds));
+
+    // 加载所有项目的任务（如果尚未加载）
+    for (const projectId of allProjectIds) {
+      if (!tasksByProject[projectId]) {
+        await loadTasks(projectId);
+      }
+    }
   }
 
   // dnd-kit 项目排序处理
@@ -636,6 +687,24 @@ function App() {
                   <FolderKanban className="w-4 h-4 text-green-500" />
                   <span className="font-semibold text-sm">本地Prompts</span>
                 </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={collapseAllProjects}
+                    disabled={projects.length === 0}
+                    className={`p-1 rounded transition-colors disabled:opacity-50 ${styles.buttonHover}`}
+                    title="折叠全部"
+                  >
+                    <ChevronsDownUp className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={expandAllProjects}
+                    disabled={projects.length === 0}
+                    className={`p-1 rounded transition-colors disabled:opacity-50 ${styles.buttonHover}`}
+                    title="展开全部"
+                  >
+                    <ChevronsUpDown className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               <SortableProjectList
@@ -755,7 +824,7 @@ function App() {
 
         {/* 右侧主内容区 */}
         <div className="flex-1 flex overflow-hidden">
-          {/* 提示词列表 */}
+          {/* 提示词列表 - 本地任务 */}
           {selectedTaskId && (
             <div
               className={`border-r flex flex-col ${styles.promptList}`}
@@ -856,8 +925,59 @@ function App() {
               </div>
             </div>
           )}
+
+          {/* 提示词列表 - SVN 共享任务 (只读，无添加/排序/删除) */}
+          {selectedSvnTask && !selectedTaskId && (
+            <div
+              className={`border-r flex flex-col ${styles.promptList}`}
+              style={{ width: promptListWidth }}
+            >
+              {/* 工具栏 */}
+              <div className={`p-3 border-b ${styles.sidebarBorder}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`text-sm flex items-center gap-2 ${styles.textMuted}`}>
+                    <FileText className="w-4 h-4" />
+                    提示词列表
+                    <span className="px-1.5 py-0.5 bg-blue-600/20 text-blue-400 rounded text-xs border border-blue-600/30">
+                      只读
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              {/* SVN 提示词列表 */}
+              <div className="flex-1 overflow-y-auto">
+                {(svnPromptsByTask[selectedSvnTask] || []).map((prompt) => (
+                  <div
+                    key={prompt.id}
+                    onClick={() => selectSvnPrompt(prompt.id)}
+                    className={`p-3 border-b cursor-pointer transition-colors ${styles.sidebarBorder} ${selectedSvnPrompt === prompt.id ? styles.listItemActivePrompt : styles.listItem
+                      }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        {prompt.title && (
+                          <div className="text-sm font-medium mb-1 truncate">{prompt.title}</div>
+                        )}
+                        <div className={`text-xs line-clamp-2 ${styles.textMuted}`}>{prompt.content || "空内容"}</div>
+                      </div>
+                    </div>
+                    <div className={`text-xs mt-1 ${styles.iconMuted}`}>
+                      修改: {prompt.modified_at}
+                    </div>
+                  </div>
+                ))}
+                {(svnPromptsByTask[selectedSvnTask] || []).length === 0 && (
+                  <div className={`p-4 text-center text-sm ${styles.textMuted}`}>
+                    暂无提示词
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* 提示词列表拖拽把手 */}
-          {selectedTaskId && (
+          {(selectedTaskId || selectedSvnTask) && (
             <div
               className={`w-1 cursor-col-resize group flex-shrink-0 ${resizing === "promptList" ? (isDark ? "bg-blue-500" : "bg-blue-400") : ""
                 }`}
@@ -878,7 +998,7 @@ function App() {
                 // 查找当前选中的 SVN 提示词
                 let selectedSvnPromptObj: SvnPrompt | null = null;
                 if (selectedSvnPrompt) {
-                  for (const prompts of Object.values(svnPromptsByFolder)) {
+                  for (const prompts of Object.values(svnPromptsByTask)) {
                     const found = prompts.find((p) => p.id === selectedSvnPrompt);
                     if (found) {
                       selectedSvnPromptObj = found;
@@ -960,10 +1080,17 @@ function App() {
                       onChange={(e) => setEditingPromptTitle(e.target.value)}
                       onFocus={() => {
                         if (editingPromptId !== selectedPrompt.id) {
+                          const title = selectedPrompt.title || "";
+                          const content = selectedPrompt.content;
+                          const tags = selectedPrompt.tags?.join(", ") || "";
                           setEditingPromptId(selectedPrompt.id);
-                          setEditingPromptTitle(selectedPrompt.title || "");
-                          setEditingPromptContent(selectedPrompt.content);
-                          setEditingPromptTags(selectedPrompt.tags?.join(", ") || "");
+                          setEditingPromptTitle(title);
+                          setEditingPromptContent(content);
+                          setEditingPromptTags(tags);
+                          // 记录原始值
+                          setOriginalPromptTitle(title);
+                          setOriginalPromptContent(content);
+                          setOriginalPromptTags(tags);
                         }
                       }}
                       onBlur={() => {
@@ -995,12 +1122,18 @@ function App() {
                     onChange={(e) => setEditingPromptContent(e.target.value)}
                     onFocus={() => {
                       if (editingPromptId !== selectedPrompt.id) {
-                        setEditingPromptId(selectedPrompt.id);
-                        setEditingPromptTitle(selectedPrompt.title || "");
+                        const title = selectedPrompt.title || "";
                         // 如果内容只有空格，聚焦时清空让用户直接输入
                         const content = selectedPrompt.content.trim() ? selectedPrompt.content : "";
+                        const tags = selectedPrompt.tags?.join(", ") || "";
+                        setEditingPromptId(selectedPrompt.id);
+                        setEditingPromptTitle(title);
                         setEditingPromptContent(content);
-                        setEditingPromptTags(selectedPrompt.tags?.join(", ") || "");
+                        setEditingPromptTags(tags);
+                        // 记录原始值（保存原始的content，用于判断是否为新建）
+                        setOriginalPromptTitle(title);
+                        setOriginalPromptContent(selectedPrompt.content);
+                        setOriginalPromptTags(tags);
                       }
                     }}
                     onBlur={() => {
@@ -1028,10 +1161,17 @@ function App() {
                         onChange={(e) => setEditingPromptTags(e.target.value)}
                         onFocus={() => {
                           if (editingPromptId !== selectedPrompt.id) {
+                            const title = selectedPrompt.title || "";
+                            const content = selectedPrompt.content;
+                            const tags = selectedPrompt.tags?.join(", ") || "";
                             setEditingPromptId(selectedPrompt.id);
-                            setEditingPromptTitle(selectedPrompt.title || "");
-                            setEditingPromptContent(selectedPrompt.content);
-                            setEditingPromptTags(selectedPrompt.tags?.join(", ") || "");
+                            setEditingPromptTitle(title);
+                            setEditingPromptContent(content);
+                            setEditingPromptTags(tags);
+                            // 记录原始值
+                            setOriginalPromptTitle(title);
+                            setOriginalPromptContent(content);
+                            setOriginalPromptTags(tags);
                           }
                         }}
                         onBlur={() => {

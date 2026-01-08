@@ -118,7 +118,63 @@ pub fn get_svn_folders(db: State<DbState>) -> Result<Vec<SvnFolder>, ApiError> {
     svn_service::get_folders(&local_path_buf).map_err(Into::into)
 }
 
-/// 获取指定文件夹中的提示词列表
+/// 获取项目下的任务文件夹列表（第二层目录）
+#[tauri::command]
+pub fn get_svn_tasks_for_project(project_path: String, db: State<DbState>) -> Result<Vec<SvnFolder>, ApiError> {
+    let conn = db.0.lock().map_err(|e| ApiError {
+        code: "LOCK_ERROR".to_string(),
+        message: format!("获取数据库锁失败: {}", e),
+    })?;
+
+    let config = settings_repository::get_svn_config(&conn).map_err(|e| ApiError {
+        code: "DB_ERROR".to_string(),
+        message: format!("获取 SVN 配置失败: {}", e),
+    })?;
+
+    if !config.enabled {
+        return Ok(Vec::new());
+    }
+
+    let local_path = config.local_path.ok_or_else(|| ApiError {
+        code: "SVN_PATH_ERROR".to_string(),
+        message: "SVN 本地路径未设置".to_string(),
+    })?;
+
+    // 构建完整的项目文件夹路径
+    let full_project_path = PathBuf::from(&local_path).join(&project_path);
+
+    svn_service::get_subfolders(&full_project_path).map_err(Into::into)
+}
+
+/// 获取指定任务文件夹中的提示词列表
+#[tauri::command]
+pub fn get_svn_prompts_for_task(task_path: String, db: State<DbState>) -> Result<Vec<SvnPrompt>, ApiError> {
+    let conn = db.0.lock().map_err(|e| ApiError {
+        code: "LOCK_ERROR".to_string(),
+        message: format!("获取数据库锁失败: {}", e),
+    })?;
+
+    let config = settings_repository::get_svn_config(&conn).map_err(|e| ApiError {
+        code: "DB_ERROR".to_string(),
+        message: format!("获取 SVN 配置失败: {}", e),
+    })?;
+
+    if !config.enabled {
+        return Ok(Vec::new());
+    }
+
+    config.local_path.ok_or_else(|| ApiError {
+        code: "SVN_PATH_ERROR".to_string(),
+        message: "SVN 本地路径未设置".to_string(),
+    })?;
+
+    // task_path 已经是完整路径
+    let full_task_path = PathBuf::from(&task_path);
+
+    svn_service::get_prompts_in_task_folder(&full_task_path, &task_path).map_err(Into::into)
+}
+
+/// 获取指定文件夹中的提示词列表（向后兼容，用于搜索）
 #[tauri::command]
 pub fn get_svn_prompts_for_folder(folder_path: String, db: State<DbState>) -> Result<Vec<SvnPrompt>, ApiError> {
     let conn = db.0.lock().map_err(|e| ApiError {
