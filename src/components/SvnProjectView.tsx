@@ -1,10 +1,11 @@
 // SVN 共享 Prompts 视图组件 (3层结构: Project -> Task -> Prompt)
+// 左侧只显示2层（Project -> Task），点击Task后在中间列显示提示词
 import { useState, useEffect } from "react";
-import { ChevronDown, ChevronRight, FolderGit2, RefreshCw, AlertCircle, FileText, Folder } from "lucide-react";
+import { ChevronDown, ChevronRight, FolderGit2, RefreshCw, AlertCircle, Folder } from "lucide-react";
 import { useAppStore } from "../store/appStore";
 import { SvnApi } from "../tauri-api";
 import { toast } from "./Toast";
-import type { SvnFolder, SvnPrompt } from "../types";
+import type { SvnFolder } from "../types";
 
 interface SvnProjectViewProps {
     isDark: boolean;
@@ -16,25 +17,20 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
         svnConfig,
         svnFolders,
         svnTasksByProject,
-        svnPromptsByTask,
         selectedSvnFolder,
         selectedSvnTask,
-        selectedSvnPrompt,
         svnLoading,
         svnError,
         expandedSvnFolders,
-        expandedSvnTasks,
         setSvnConfig,
         setSvnFolders,
         setSvnTasksForProject,
         setSvnPromptsForTask,
         selectSvnFolder,
         selectSvnTask,
-        selectSvnPrompt,
         setSvnLoading,
         setSvnError,
         toggleSvnFolder,
-        toggleSvnTask,
     } = useAppStore();
 
     const [refreshing, setRefreshing] = useState(false);
@@ -112,10 +108,10 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
                 }
             }
 
-            // 重新加载已展开任务的提示词
-            for (const taskPath of Array.from(expandedSvnTasks)) {
+            // 如果有选中的任务，重新加载其提示词
+            if (selectedSvnTask) {
                 const tasks = Object.values(svnTasksByProject).flat();
-                const task = tasks.find((t) => t.path === taskPath);
+                const task = tasks.find((t) => t.path === selectedSvnTask);
                 if (task) {
                     await loadPromptsForTask(task);
                 }
@@ -142,17 +138,9 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
     };
 
     const handleTaskClick = (task: SvnFolder) => {
-        toggleSvnTask(task.path);
-
-        // 如果正在展开且未加载过，则加载提示词
-        if (!expandedSvnTasks.has(task.path)) {
-            loadPromptsForTask(task);
-            selectSvnTask(task.path);
-        }
-    };
-
-    const handlePromptClick = (prompt: SvnPrompt) => {
-        selectSvnPrompt(prompt.id);
+        // 选中任务，并加载该任务的提示词（在中间列显示）
+        selectSvnTask(task.path);
+        loadPromptsForTask(task);
     };
 
     // 如果未启用，不显示
@@ -234,7 +222,7 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
                             <span className="flex-1 text-sm truncate">{project.name}</span>
                         </div>
 
-                        {/* 任务列表 (第二层) */}
+                        {/* 任务列表 (第二层) - 不展开，点击后在中间列显示提示词 */}
                         {isProjectExpanded && (
                             <div className="ml-4">
                                 {svnLoading && tasks.length === 0 && (
@@ -249,72 +237,20 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
                                     </div>
                                 )}
 
-                                {tasks.map((task) => {
-                                    const isTaskExpanded = expandedSvnTasks.has(task.path);
-                                    const prompts = svnPromptsByTask[task.path] || [];
-
-                                    return (
-                                        <div key={task.path}>
-                                            {/* 任务项 */}
-                                            <div
-                                                className={`
-                                                    flex items-center gap-1 px-2 pl-4 py-1.5 cursor-pointer
-                                                    transition-colors group relative
-                                                    ${selectedSvnTask === task.path ? styles.listItemActive : styles.listItem}
-                                                `}
-                                                onClick={() => handleTaskClick(task)}
-                                            >
-                                                <button
-                                                    className={`p-0.5 rounded flex-shrink-0 ${styles.buttonHover}`}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleTaskClick(task);
-                                                    }}
-                                                >
-                                                    {isTaskExpanded ? (
-                                                        <ChevronDown className={`w-3.5 h-3.5 ${styles.iconMuted}`} />
-                                                    ) : (
-                                                        <ChevronRight className={`w-3.5 h-3.5 ${styles.iconMuted}`} />
-                                                    )}
-                                                </button>
-                                                <Folder className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0" />
-                                                <span className={`flex-1 text-sm truncate ${styles.textSecondary}`}>{task.name}</span>
-                                            </div>
-
-                                            {/* 提示词列表 (第三层) */}
-                                            {isTaskExpanded && (
-                                                <div className="ml-4">
-                                                    {svnLoading && prompts.length === 0 && (
-                                                        <div className={`px-2 py-1 text-xs ${styles.textMuted}`}>
-                                                            加载中...
-                                                        </div>
-                                                    )}
-
-                                                    {prompts.length === 0 && !svnLoading && (
-                                                        <div className={`px-2 py-1 text-xs ${styles.textMuted}`}>
-                                                            暂无提示词
-                                                        </div>
-                                                    )}
-
-                                                    {prompts.map((prompt) => (
-                                                        <div
-                                                            key={prompt.id}
-                                                            className={`
-                                                                flex items-center gap-1 px-2 pl-4 py-1.5 cursor-pointer
-                                                                transition-colors group relative
-                                                                ${selectedSvnPrompt === prompt.id ? styles.listItemActiveTask : styles.listItem}
-                                                            `}
-                                                            onClick={() => handlePromptClick(prompt)}
-                                                        >
-                                                            <FileText className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                                                            <span className={`flex-1 text-sm truncate ${styles.textSecondary}`}>{prompt.title}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+                                {tasks.map((task) => (
+                                    <div
+                                        key={task.path}
+                                        className={`
+                                            flex items-center gap-2 px-2 pl-6 py-1.5 cursor-pointer
+                                            transition-colors group relative
+                                            ${selectedSvnTask === task.path ? styles.listItemActive : styles.listItem}
+                                        `}
+                                        onClick={() => handleTaskClick(task)}
+                                    >
+                                        <Folder className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0" />
+                                        <span className={`flex-1 text-sm truncate ${styles.textSecondary}`}>{task.name}</span>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>

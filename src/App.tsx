@@ -49,6 +49,7 @@ function App() {
     selectPrompt,
     // SVN 相关
     svnPromptsByTask,
+    selectedSvnTask,
     selectedSvnPrompt,
     selectSvnPrompt,
     toggleSvnFolder,
@@ -755,7 +756,7 @@ function App() {
 
         {/* 右侧主内容区 */}
         <div className="flex-1 flex overflow-hidden">
-          {/* 提示词列表 */}
+          {/* 提示词列表 - 本地任务 */}
           {selectedTaskId && (
             <div
               className={`border-r flex flex-col ${styles.promptList}`}
@@ -856,8 +857,59 @@ function App() {
               </div>
             </div>
           )}
+
+          {/* 提示词列表 - SVN 共享任务 (只读，无添加/排序/删除) */}
+          {selectedSvnTask && !selectedTaskId && (
+            <div
+              className={`border-r flex flex-col ${styles.promptList}`}
+              style={{ width: promptListWidth }}
+            >
+              {/* 工具栏 */}
+              <div className={`p-3 border-b ${styles.sidebarBorder}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`text-sm flex items-center gap-2 ${styles.textMuted}`}>
+                    <FileText className="w-4 h-4" />
+                    提示词列表
+                    <span className="px-1.5 py-0.5 bg-blue-600/20 text-blue-400 rounded text-xs border border-blue-600/30">
+                      只读
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              {/* SVN 提示词列表 */}
+              <div className="flex-1 overflow-y-auto">
+                {(svnPromptsByTask[selectedSvnTask] || []).map((prompt) => (
+                  <div
+                    key={prompt.id}
+                    onClick={() => selectSvnPrompt(prompt.id)}
+                    className={`p-3 border-b cursor-pointer transition-colors ${styles.sidebarBorder} ${selectedSvnPrompt === prompt.id ? styles.listItemActivePrompt : styles.listItem
+                      }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        {prompt.title && (
+                          <div className="text-sm font-medium mb-1 truncate">{prompt.title}</div>
+                        )}
+                        <div className={`text-xs line-clamp-2 ${styles.textMuted}`}>{prompt.content || "空内容"}</div>
+                      </div>
+                    </div>
+                    <div className={`text-xs mt-1 ${styles.iconMuted}`}>
+                      修改: {prompt.modified_at}
+                    </div>
+                  </div>
+                ))}
+                {(svnPromptsByTask[selectedSvnTask] || []).length === 0 && (
+                  <div className={`p-4 text-center text-sm ${styles.textMuted}`}>
+                    暂无提示词
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* 提示词列表拖拽把手 */}
-          {selectedTaskId && (
+          {(selectedTaskId || selectedSvnTask) && (
             <div
               className={`w-1 cursor-col-resize group flex-shrink-0 ${resizing === "promptList" ? (isDark ? "bg-blue-500" : "bg-blue-400") : ""
                 }`}
