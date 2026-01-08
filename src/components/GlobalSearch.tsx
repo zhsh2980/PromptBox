@@ -131,9 +131,9 @@ export function GlobalSearch({ onSelectResult, isDark = true }: GlobalSearchProp
                 )}
             </div>
 
-            {/* 搜索结果面板 */}
+            {/* 搜索结果面板 - 横向居中对齐 */}
             {isOpen && results.length > 0 && (
-                <div className={`absolute top-full left-0 w-[400px] mt-2 border rounded-lg shadow-xl max-h-96 overflow-y-auto z-50 ${styles.panel}`}>
+                <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[400px] mt-2 border rounded-lg shadow-xl max-h-96 overflow-y-auto z-50 ${styles.panel}`}>
                     <div className={`p-2 border-b text-xs ${styles.panelBorder} ${styles.panelText}`}>
                         找到 {results.length} 条结果
                     </div>
@@ -175,16 +175,16 @@ export function GlobalSearch({ onSelectResult, isDark = true }: GlobalSearchProp
                 </div>
             )}
 
-            {/* 无结果提示 */}
+            {/* 无结果提示 - 横向居中对齐 */}
             {isOpen && keyword && results.length === 0 && !loading && (
-                <div className={`absolute top-full left-0 w-[400px] mt-2 border rounded-lg shadow-xl p-4 text-center text-sm z-50 ${styles.panel} ${styles.panelText}`}>
+                <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[400px] mt-2 border rounded-lg shadow-xl p-4 text-center text-sm z-50 ${styles.panel} ${styles.panelText}`}>
                     未找到匹配的提示词
                 </div>
             )}
 
-            {/* 加载中 */}
+            {/* 加载中 - 横向居中对齐 */}
             {loading && (
-                <div className={`absolute top-full left-0 w-[400px] mt-2 border rounded-lg shadow-xl p-4 text-center text-sm z-50 ${styles.panel} ${styles.panelText}`}>
+                <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[400px] mt-2 border rounded-lg shadow-xl p-4 text-center text-sm z-50 ${styles.panel} ${styles.panelText}`}>
                     <div className="flex items-center justify-center gap-2">
                         <div className={`w-4 h-4 border-2 rounded-full animate-spin ${isDark ? "border-zinc-500 border-t-blue-500" : "border-slate-300 border-t-blue-500"}`} />
                         搜索中...

@@ -215,7 +215,6 @@ function App() {
   const [editingPromptContent, setEditingPromptContent] = useState("");
   const [editingPromptTitle, setEditingPromptTitle] = useState("");
   const [editingPromptTags, setEditingPromptTags] = useState("");
-  const [editingPromptModel, setEditingPromptModel] = useState("");
 
   // 加载项目列表
   useEffect(() => {
@@ -377,23 +376,27 @@ function App() {
 
   // 提示词更新和删除
   async function handleUpdatePrompt(id: number) {
-    if (!editingPromptContent.trim()) return;
+    // 允许只更新标题或内容，只要有一个有值就可以保存
+    const hasTitle = editingPromptTitle.trim().length > 0;
+    const hasContent = editingPromptContent.trim().length > 0;
+    if (!hasTitle && !hasContent) return;
+
     try {
       const tags = parseTags(editingPromptTags);
+      // 如果内容为空，使用空格（后端需要非空）
+      const contentToSave = editingPromptContent.trim() ? editingPromptContent : " ";
       await PromptApi.update({
         id,
-        content: editingPromptContent,
+        content: contentToSave,
         title: editingPromptTitle || undefined,
         tags: tags.length > 0 ? tags : undefined,
-        model: editingPromptModel || undefined,
       });
       updatePrompt(id, {
-        content: editingPromptContent,
+        content: contentToSave,
         title: editingPromptTitle || undefined,
         tags: tags.length > 0 ? tags : undefined,
-        model: editingPromptModel || undefined,
       });
-      // 静默保存，不显示提示
+      toast.success("已保存");
     } catch (e) {
       toast.error("保存失败");
       console.error(e);
@@ -879,7 +882,7 @@ function App() {
           <div className="flex-1 flex flex-col overflow-hidden">
 
             {/* 提示词编辑区（类似笔记软件，直接可编辑） */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 flex flex-col overflow-hidden p-6">
               {(() => {
                 // 查找当前选中的 SVN 提示词
                 let selectedSvnPromptObj: SvnPrompt | null = null;
@@ -957,7 +960,7 @@ function App() {
 
                 // 显示数据库提示词（可编辑）
                 return selectedPrompt ? (
-                <div className="max-w-4xl mx-auto space-y-4">
+                <div className="max-w-4xl mx-auto flex flex-col h-full gap-4">
                   {/* 顶部：标题和复制按钮在同一行 */}
                   <div className="flex items-center justify-between gap-4">
                     <input
@@ -970,7 +973,6 @@ function App() {
                           setEditingPromptTitle(selectedPrompt.title || "");
                           setEditingPromptContent(selectedPrompt.content);
                           setEditingPromptTags(selectedPrompt.tags?.join(", ") || "");
-                          setEditingPromptModel(selectedPrompt.model || "");
                         }
                       }}
                       onBlur={() => {
@@ -1006,7 +1008,6 @@ function App() {
                         const content = selectedPrompt.content.trim() ? selectedPrompt.content : "";
                         setEditingPromptContent(content);
                         setEditingPromptTags(selectedPrompt.tags?.join(", ") || "");
-                        setEditingPromptModel(selectedPrompt.model || "");
                       }
                     }}
                     onBlur={() => {
@@ -1019,38 +1020,12 @@ function App() {
                       }
                     }}
                     placeholder="输入提示词内容..."
-                    className={`w-full min-h-[400px] p-4 border rounded-lg text-sm resize-none focus:outline-none focus:border-blue-500/50 font-mono leading-relaxed ${styles.contentArea} ${isDark ? "text-zinc-200" : "text-slate-800"
+                    className={`w-full flex-1 min-h-0 p-4 border rounded-lg text-sm resize-none focus:outline-none focus:border-blue-500/50 font-mono leading-relaxed ${styles.contentArea} ${isDark ? "text-zinc-200" : "text-slate-800"
                       }`}
                   />
 
-                  {/* 底部元数据行：模型 + 标签 + 修改时间 */}
-                  <div className="flex items-center gap-3 flex-wrap text-sm">
-                    {/* 模型输入框 */}
-                    <div className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg ${styles.contentArea}`}>
-                      <Bot className={`w-4 h-4 ${styles.iconMuted}`} />
-                      <input
-                        type="text"
-                        value={editingPromptId === selectedPrompt.id ? editingPromptModel : (selectedPrompt.model || "")}
-                        onChange={(e) => setEditingPromptModel(e.target.value)}
-                        onFocus={() => {
-                          if (editingPromptId !== selectedPrompt.id) {
-                            setEditingPromptId(selectedPrompt.id);
-                            setEditingPromptTitle(selectedPrompt.title || "");
-                            setEditingPromptContent(selectedPrompt.content);
-                            setEditingPromptTags(selectedPrompt.tags?.join(", ") || "");
-                            setEditingPromptModel(selectedPrompt.model || "");
-                          }
-                        }}
-                        onBlur={() => {
-                          if (editingPromptId === selectedPrompt.id) {
-                            handleUpdatePrompt(selectedPrompt.id);
-                          }
-                        }}
-                        placeholder="模型"
-                        className={`w-28 bg-transparent focus:outline-none ${styles.textSecondary}`}
-                      />
-                    </div>
-
+                  {/* 底部元数据行：标签 */}
+                  <div className="flex items-center gap-3 flex-wrap text-sm flex-shrink-0">
                     {/* 标签输入框 */}
                     <div className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg ${styles.contentArea}`}>
                       <Tag className={`w-4 h-4 ${styles.iconMuted}`} />
@@ -1064,7 +1039,6 @@ function App() {
                             setEditingPromptTitle(selectedPrompt.title || "");
                             setEditingPromptContent(selectedPrompt.content);
                             setEditingPromptTags(selectedPrompt.tags?.join(", ") || "");
-                            setEditingPromptModel(selectedPrompt.model || "");
                           }
                         }}
                         onBlur={() => {
@@ -1076,16 +1050,6 @@ function App() {
                         className={`w-40 bg-transparent focus:outline-none ${styles.textSecondary}`}
                       />
                     </div>
-
-                    {/* 修改时间 */}
-                    {selectedPrompt.updated_at && (
-                      <div className={`ml-auto flex items-center gap-1.5 ${styles.textMuted}`}>
-                        <Clock className="w-4 h-4" />
-                        <span className="text-xs">
-                          {new Date(selectedPrompt.updated_at).toLocaleString()}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </div>
               ) : selectedTaskId ? (

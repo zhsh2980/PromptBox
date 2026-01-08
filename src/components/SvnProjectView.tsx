@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { ChevronDown, ChevronRight, FolderGit2, RefreshCw, AlertCircle, FileText } from "lucide-react";
 import { useAppStore } from "../store/appStore";
 import { SvnApi } from "../tauri-api";
+import { toast } from "./Toast";
 import type { SvnFolder, SvnPrompt } from "../types";
 
 interface SvnProjectViewProps {
@@ -90,9 +91,11 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
                     await loadPromptsForFolder(folder);
                 }
             }
+            toast.success("刷新成功");
         } catch (error: any) {
             console.error("刷新 SVN 数据失败:", error);
             setSvnError(error.message || "刷新失败");
+            toast.error("刷新失败: " + (error.message || "未知错误"));
         } finally {
             setRefreshing(false);
         }
@@ -119,8 +122,8 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
 
     return (
         <div className="svn-project-view border-b pb-2 mb-2">
-            {/* 标题行 */}
-            <div className="flex items-center justify-between p-2 mb-1">
+            {/* 标题行 - 添加左侧 padding 与本地 Prompts 对齐 */}
+            <div className="flex items-center justify-between p-2 pl-8 mb-1">
                 <div className="flex items-center gap-2">
                     <FolderGit2 className="w-4 h-4 text-blue-500" />
                     <span className="font-semibold text-sm">共享Prompts</span>
@@ -165,10 +168,10 @@ export function SvnProjectView({ isDark: _isDark, styles }: SvnProjectViewProps)
 
                 return (
                     <div key={folder.path}>
-                        {/* 文件夹项 */}
+                        {/* 文件夹项 - 添加左侧 padding 与本地 Prompts 对齐 */}
                         <div
                             className={`
-                                flex items-center gap-1 px-2 py-2 cursor-pointer
+                                flex items-center gap-1 px-2 pl-8 py-2 cursor-pointer
                                 transition-colors group relative
                                 ${selectedSvnFolder === folder.path ? styles.listItemActive : styles.listItem}
                             `}
