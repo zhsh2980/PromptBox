@@ -221,6 +221,10 @@ function App() {
   const [editingPromptContent, setEditingPromptContent] = useState("");
   const [editingPromptTitle, setEditingPromptTitle] = useState("");
   const [editingPromptTags, setEditingPromptTags] = useState("");
+  // 原始内容（用于判断是否有变化）
+  const [originalPromptContent, setOriginalPromptContent] = useState("");
+  const [originalPromptTitle, setOriginalPromptTitle] = useState("");
+  const [originalPromptTags, setOriginalPromptTags] = useState("");
 
   // 加载项目列表
   useEffect(() => {
@@ -387,22 +391,46 @@ function App() {
     const hasContent = editingPromptContent.trim().length > 0;
     if (!hasTitle && !hasContent) return;
 
+    // 比较内容是否有变化
+    const contentToSave = editingPromptContent.trim() ? editingPromptContent : " ";
+    const currentTags = parseTags(editingPromptTags);
+    const currentTagsStr = currentTags.join(", ");
+
+    const contentChanged = contentToSave !== originalPromptContent;
+    const titleChanged = editingPromptTitle !== originalPromptTitle;
+    const tagsChanged = currentTagsStr !== originalPromptTags;
+
+    // 如果没有任何变化，不保存也不提示
+    if (!contentChanged && !titleChanged && !tagsChanged) {
+      return;
+    }
+
     try {
-      const tags = parseTags(editingPromptTags);
-      // 如果内容为空，使用空格（后端需要非空）
-      const contentToSave = editingPromptContent.trim() ? editingPromptContent : " ";
       await PromptApi.update({
         id,
         content: contentToSave,
         title: editingPromptTitle || undefined,
-        tags: tags.length > 0 ? tags : undefined,
+        tags: currentTags.length > 0 ? currentTags : undefined,
       });
       updatePrompt(id, {
         content: contentToSave,
         title: editingPromptTitle || undefined,
-        tags: tags.length > 0 ? tags : undefined,
+        tags: currentTags.length > 0 ? currentTags : undefined,
       });
-      toast.success("已保存");
+
+      // 判断是首次创建还是修改
+      // 首次创建：原始内容为空或只有空格
+      const isNewPrompt = !originalPromptContent.trim() || originalPromptContent.trim() === "";
+      if (isNewPrompt) {
+        toast.success("已保存");
+      } else {
+        toast.success("已修改");
+      }
+
+      // 更新原始内容为当前内容
+      setOriginalPromptContent(contentToSave);
+      setOriginalPromptTitle(editingPromptTitle);
+      setOriginalPromptTags(currentTagsStr);
     } catch (e) {
       toast.error("保存失败");
       console.error(e);
@@ -1012,10 +1040,17 @@ function App() {
                       onChange={(e) => setEditingPromptTitle(e.target.value)}
                       onFocus={() => {
                         if (editingPromptId !== selectedPrompt.id) {
+                          const title = selectedPrompt.title || "";
+                          const content = selectedPrompt.content;
+                          const tags = selectedPrompt.tags?.join(", ") || "";
                           setEditingPromptId(selectedPrompt.id);
-                          setEditingPromptTitle(selectedPrompt.title || "");
-                          setEditingPromptContent(selectedPrompt.content);
-                          setEditingPromptTags(selectedPrompt.tags?.join(", ") || "");
+                          setEditingPromptTitle(title);
+                          setEditingPromptContent(content);
+                          setEditingPromptTags(tags);
+                          // 记录原始值
+                          setOriginalPromptTitle(title);
+                          setOriginalPromptContent(content);
+                          setOriginalPromptTags(tags);
                         }
                       }}
                       onBlur={() => {
@@ -1047,12 +1082,18 @@ function App() {
                     onChange={(e) => setEditingPromptContent(e.target.value)}
                     onFocus={() => {
                       if (editingPromptId !== selectedPrompt.id) {
-                        setEditingPromptId(selectedPrompt.id);
-                        setEditingPromptTitle(selectedPrompt.title || "");
+                        const title = selectedPrompt.title || "";
                         // 如果内容只有空格，聚焦时清空让用户直接输入
                         const content = selectedPrompt.content.trim() ? selectedPrompt.content : "";
+                        const tags = selectedPrompt.tags?.join(", ") || "";
+                        setEditingPromptId(selectedPrompt.id);
+                        setEditingPromptTitle(title);
                         setEditingPromptContent(content);
-                        setEditingPromptTags(selectedPrompt.tags?.join(", ") || "");
+                        setEditingPromptTags(tags);
+                        // 记录原始值（保存原始的content，用于判断是否为新建）
+                        setOriginalPromptTitle(title);
+                        setOriginalPromptContent(selectedPrompt.content);
+                        setOriginalPromptTags(tags);
                       }
                     }}
                     onBlur={() => {
@@ -1080,10 +1121,17 @@ function App() {
                         onChange={(e) => setEditingPromptTags(e.target.value)}
                         onFocus={() => {
                           if (editingPromptId !== selectedPrompt.id) {
+                            const title = selectedPrompt.title || "";
+                            const content = selectedPrompt.content;
+                            const tags = selectedPrompt.tags?.join(", ") || "";
                             setEditingPromptId(selectedPrompt.id);
-                            setEditingPromptTitle(selectedPrompt.title || "");
-                            setEditingPromptContent(selectedPrompt.content);
-                            setEditingPromptTags(selectedPrompt.tags?.join(", ") || "");
+                            setEditingPromptTitle(title);
+                            setEditingPromptContent(content);
+                            setEditingPromptTags(tags);
+                            // 记录原始值
+                            setOriginalPromptTitle(title);
+                            setOriginalPromptContent(content);
+                            setOriginalPromptTags(tags);
                           }
                         }}
                         onBlur={() => {
