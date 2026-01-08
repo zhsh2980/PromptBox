@@ -109,96 +109,103 @@ export function GlobalSearch({ onSelectResult, isDark = true }: GlobalSearchProp
     };
 
     return (
-        <div className="relative">
-            {/* 搜索输入框 */}
-            <div className="relative flex items-center">
-                <Search className={`absolute left-3 w-4 h-4 ${styles.icon}`} />
-                <input
-                    type="text"
-                    data-search-input
-                    value={keyword}
-                    onChange={(e) => setKeyword(e.target.value)}
-                    placeholder="搜索提示词"
-                    className={`flex-1 min-w-32 max-w-72 pl-10 pr-8 py-2 border rounded-lg text-sm focus:outline-none focus:border-blue-500 transition-colors ${styles.input}`}
-                />
-                {keyword && (
-                    <button
-                        onClick={handleClose}
-                        className={`absolute right-2 ${styles.icon} ${styles.iconHover}`}
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
-                )}
-            </div>
-
-            {/* 搜索结果面板 - 横向居中对齐 */}
-            {isOpen && results.length > 0 && (
-                <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[400px] mt-2 border rounded-lg shadow-xl max-h-96 overflow-y-auto z-50 ${styles.panel}`}>
-                    <div className={`p-2 border-b text-xs ${styles.panelBorder} ${styles.panelText}`}>
-                        找到 {results.length} 条结果
-                    </div>
-                    {results.map((result, index) => (
-                        <div
-                            key={result.source === "local" ? `local-${result.prompt_id}-${index}` : `svn-${result.file_path}-${index}`}
-                            onClick={() => handleSelectResult(result)}
-                            className={`p-3 cursor-pointer border-b last:border-b-0 ${styles.panelBorder} ${styles.resultHover}`}
-                        >
-                            <div className="flex items-center gap-2 mb-1">
-                                {/* 来源标识 */}
-                                {result.source === "svn" && (
-                                    <span className={`text-xs px-2 py-0.5 rounded ${isDark ? "bg-purple-600/20 text-purple-400" : "bg-purple-100 text-purple-700"}`}>
-                                        共享
-                                    </span>
-                                )}
-                                <span className={`text-xs px-2 py-0.5 rounded ${isDark ? "bg-blue-600/20 text-blue-400" : "bg-blue-100 text-blue-700"}`}>
-                                    {result.project_name}
-                                </span>
-                                <span className={`text-xs ${styles.panelText}`}>→</span>
-                                <span className={`text-xs px-2 py-0.5 rounded ${isDark ? "bg-green-600/20 text-green-400" : "bg-green-100 text-green-700"}`}>
-                                    {result.task_name}
-                                </span>
-                            </div>
-                            {/* 对于SVN prompts，如果有单独的标题，显示标题 */}
-                            {result.source === "svn" && result.prompt_title && (
-                                <p className={`text-sm font-medium mb-1 ${styles.resultText}`}>
-                                    {result.prompt_title}
-                                </p>
-                            )}
-                            <p className={`text-sm line-clamp-2 ${styles.resultText}`}>
-                                <HighlightText text={result.snippet} keyword={keyword} isDark={isDark} />
-                            </p>
-                            <span className={`text-xs mt-1 block ${styles.panelText}`}>
-                                {new Date(result.created_at).toLocaleString()}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* 无结果提示 - 横向居中对齐 */}
-            {isOpen && keyword && results.length === 0 && !loading && (
-                <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[400px] mt-2 border rounded-lg shadow-xl p-4 text-center text-sm z-50 ${styles.panel} ${styles.panelText}`}>
-                    未找到匹配的提示词
-                </div>
-            )}
-
-            {/* 加载中 - 横向居中对齐 */}
-            {loading && (
-                <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[400px] mt-2 border rounded-lg shadow-xl p-4 text-center text-sm z-50 ${styles.panel} ${styles.panelText}`}>
-                    <div className="flex items-center justify-center gap-2">
-                        <div className={`w-4 h-4 border-2 rounded-full animate-spin ${isDark ? "border-zinc-500 border-t-blue-500" : "border-slate-300 border-t-blue-500"}`} />
-                        搜索中...
-                    </div>
-                </div>
-            )}
-
-            {/* 点击外部关闭 */}
+        <>
+            {/* 点击外部关闭遮罩层 - 放在最外层确保能捕获点击 */}
             {isOpen && (
                 <div
                     className="fixed inset-0 z-40"
                     onClick={handleClose}
                 />
             )}
-        </div>
+            <div className="relative z-50">
+                {/* 搜索输入框 */}
+                <div className="relative flex items-center">
+                    <Search className={`absolute left-3 w-4 h-4 ${styles.icon}`} />
+                    <input
+                        type="text"
+                        data-search-input
+                        value={keyword}
+                        onChange={(e) => setKeyword(e.target.value)}
+                        onFocus={() => {
+                            // 如果有关键词且之前有结果，重新打开面板
+                            if (keyword.trim() && results.length > 0) {
+                                setIsOpen(true);
+                            }
+                        }}
+                        placeholder="搜索提示词"
+                        className={`flex-1 min-w-32 max-w-72 pl-10 pr-8 py-2 border rounded-lg text-sm focus:outline-none focus:border-blue-500 transition-colors ${styles.input}`}
+                    />
+                    {keyword && (
+                        <button
+                            onClick={handleClose}
+                            className={`absolute right-2 ${styles.icon} ${styles.iconHover}`}
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
+
+                {/* 搜索结果面板 - 横向居中对齐 */}
+                {isOpen && results.length > 0 && (
+                    <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[400px] mt-2 border rounded-lg shadow-xl max-h-96 overflow-y-auto ${styles.panel}`}>
+                        <div className={`p-2 border-b text-xs ${styles.panelBorder} ${styles.panelText}`}>
+                            找到 {results.length} 条结果
+                        </div>
+                        {results.map((result, index) => (
+                            <div
+                                key={result.source === "local" ? `local-${result.prompt_id}-${index}` : `svn-${result.file_path}-${index}`}
+                                onClick={() => handleSelectResult(result)}
+                                className={`p-3 cursor-pointer border-b last:border-b-0 ${styles.panelBorder} ${styles.resultHover}`}
+                            >
+                                <div className="flex items-center gap-2 mb-1">
+                                    {/* 来源标识 */}
+                                    {result.source === "svn" && (
+                                        <span className={`text-xs px-2 py-0.5 rounded ${isDark ? "bg-purple-600/20 text-purple-400" : "bg-purple-100 text-purple-700"}`}>
+                                            共享
+                                        </span>
+                                    )}
+                                    <span className={`text-xs px-2 py-0.5 rounded ${isDark ? "bg-blue-600/20 text-blue-400" : "bg-blue-100 text-blue-700"}`}>
+                                        {result.project_name}
+                                    </span>
+                                    <span className={`text-xs ${styles.panelText}`}>→</span>
+                                    <span className={`text-xs px-2 py-0.5 rounded ${isDark ? "bg-green-600/20 text-green-400" : "bg-green-100 text-green-700"}`}>
+                                        {result.task_name}
+                                    </span>
+                                </div>
+                                {/* 对于SVN prompts，如果有单独的标题，显示标题 */}
+                                {result.source === "svn" && result.prompt_title && (
+                                    <p className={`text-sm font-medium mb-1 ${styles.resultText}`}>
+                                        {result.prompt_title}
+                                    </p>
+                                )}
+                                <p className={`text-sm line-clamp-2 ${styles.resultText}`}>
+                                    <HighlightText text={result.snippet} keyword={keyword} isDark={isDark} />
+                                </p>
+                                <span className={`text-xs mt-1 block ${styles.panelText}`}>
+                                    {new Date(result.created_at).toLocaleString()}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* 无结果提示 - 横向居中对齐 */}
+                {isOpen && keyword && results.length === 0 && !loading && (
+                    <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[400px] mt-2 border rounded-lg shadow-xl p-4 text-center text-sm ${styles.panel} ${styles.panelText}`}>
+                        未找到匹配的提示词
+                    </div>
+                )}
+
+                {/* 加载中 - 横向居中对齐 */}
+                {loading && (
+                    <div className={`absolute top-full left-1/2 -translate-x-1/2 w-[400px] mt-2 border rounded-lg shadow-xl p-4 text-center text-sm ${styles.panel} ${styles.panelText}`}>
+                        <div className="flex items-center justify-center gap-2">
+                            <div className={`w-4 h-4 border-2 rounded-full animate-spin ${isDark ? "border-zinc-500 border-t-blue-500" : "border-slate-300 border-t-blue-500"}`} />
+                            搜索中...
+                        </div>
+                    </div>
+                )}
+            </div>
+        </>
     );
 }

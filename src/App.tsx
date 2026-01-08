@@ -899,9 +899,9 @@ function App() {
                 // 显示 SVN 提示词（只读模式）
                 if (selectedSvnPromptObj) {
                   return (
-                    <div className="max-w-4xl mx-auto space-y-4">
+                    <div className="w-full h-full flex flex-col gap-4">
                       {/* 顶部：标题和复制按钮在同一行 */}
-                      <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center justify-between gap-4 flex-shrink-0">
                         <div className="flex-1 flex items-center gap-2">
                           <span className="px-2 py-1 bg-blue-600/20 text-blue-400 rounded text-xs border border-blue-600/30 flex-shrink-0">
                             共享 (只读)
@@ -922,7 +922,7 @@ function App() {
 
                       {/* 内容显示区（只读） */}
                       <div
-                        className={`w-full min-h-[400px] p-4 border rounded-lg text-sm font-mono leading-relaxed whitespace-pre-wrap ${styles.contentArea} ${
+                        className={`w-full flex-1 min-h-0 p-4 border rounded-lg text-sm font-mono leading-relaxed whitespace-pre-wrap overflow-auto ${styles.contentArea} ${
                           isDark ? "text-zinc-200" : "text-slate-800"
                         }`}
                       >
@@ -960,7 +960,7 @@ function App() {
 
                 // 显示数据库提示词（可编辑）
                 return selectedPrompt ? (
-                <div className="max-w-4xl mx-auto flex flex-col h-full gap-4">
+                <div className="w-full flex flex-col h-full gap-4">
                   {/* 顶部：标题和复制按钮在同一行 */}
                   <div className="flex items-center justify-between gap-4">
                     <input
