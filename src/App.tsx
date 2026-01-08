@@ -20,9 +20,8 @@ import {
 } from "lucide-react";
 import { ProjectApi, TaskApi, PromptApi } from "./tauri-api";
 import { useAppStore } from "./store";
-import { GlobalSearch, SettingsDialog, SvnProjectView, ToastContainer, toast } from "./components";
+import { ConfirmDialog, GlobalSearch, SettingsDialog, SvnProjectView, ToastContainer, toast } from "./components";
 import { SortableProjectList } from "./components/SortableProjectList";
-import { ask } from "@tauri-apps/plugin-dialog";
 import type { SearchResultDto, SvnPrompt } from "./types";
 
 function App() {
@@ -61,6 +60,12 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sortBy, setSortBy] = useState<"created" | "updated">("created");
+
+  // 删除确认对话框状态
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean;
+    promptId: number | null;
+  }>({ isOpen: false, promptId: null });
 
   // UI 状态
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -825,24 +830,10 @@ function App() {
                       </div>
                       {/* 删除按钮 - 悬停时显示 */}
                       <button
-                        onClick={async (e) => {
+                        onClick={(e) => {
                           e.stopPropagation();
                           e.preventDefault();
-                          const promptId = prompt.id;
-                          const confirmed = await ask("确定要删除此提示词吗？", {
-                            title: "删除确认",
-                            kind: "warning",
-                          });
-                          if (confirmed) {
-                            try {
-                              await PromptApi.remove(promptId);
-                              removePrompt(promptId);
-                              toast.success("提示词已删除");
-                            } catch (err) {
-                              toast.error("删除提示词失败");
-                              console.error(err);
-                            }
-                          }
+                          setDeleteConfirm({ isOpen: true, promptId: prompt.id });
                         }}
                         className={`p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity ml-2 ${styles.buttonHover}`}
                         title="删除"
@@ -1079,6 +1070,29 @@ function App() {
       </div>
 
       <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} isDark={isDark} />
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title="删除确认"
+        message="确定要删除此提示词吗？"
+        kind="danger"
+        confirmText="删除"
+        cancelText="取消"
+        isDark={isDark}
+        onConfirm={async () => {
+          if (deleteConfirm.promptId) {
+            try {
+              await PromptApi.remove(deleteConfirm.promptId);
+              removePrompt(deleteConfirm.promptId);
+              toast.success("提示词已删除");
+            } catch (err) {
+              toast.error("删除提示词失败");
+              console.error(err);
+            }
+          }
+          setDeleteConfirm({ isOpen: false, promptId: null });
+        }}
+        onCancel={() => setDeleteConfirm({ isOpen: false, promptId: null })}
+      />
       <ToastContainer />
     </div >
   );
