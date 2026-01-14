@@ -70,6 +70,16 @@ function App() {
     promptId: number | null;
   }>({ isOpen: false, promptId: null });
 
+  const [deleteTaskConfirm, setDeleteTaskConfirm] = useState<{
+    isOpen: boolean;
+    taskId: number | null;
+  }>({ isOpen: false, taskId: null });
+
+  const [deleteProjectConfirm, setDeleteProjectConfirm] = useState<{
+    isOpen: boolean;
+    projectId: number | null;
+  }>({ isOpen: false, projectId: null });
+
   // UI 状态
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedProjects, setExpandedProjects] = useState<Set<number>>(() => {
@@ -331,16 +341,8 @@ function App() {
     }
   }
 
-  async function handleDeleteProject(id: number) {
-    if (!confirm("确定要删除此项目吗？所有相关任务和提示词也会被删除。")) return;
-    try {
-      await ProjectApi.remove(id);
-      removeProject(id);
-      toast.success("项目已删除");
-    } catch (e) {
-      toast.error("删除项目失败");
-      console.error(e);
-    }
+  function handleDeleteProject(id: number) {
+    setDeleteProjectConfirm({ isOpen: true, projectId: id });
   }
 
   // 任务 CRUD
@@ -374,16 +376,8 @@ function App() {
     }
   }
 
-  async function handleDeleteTask(id: number) {
-    if (!confirm("确定要删除此任务吗？")) return;
-    try {
-      await TaskApi.remove(id);
-      removeTask(id);
-      toast.success("任务已删除");
-    } catch (e) {
-      toast.error("删除任务失败");
-      console.error(e);
-    }
+  function handleDeleteTask(id: number) {
+    setDeleteTaskConfirm({ isOpen: true, taskId: id });
   }
 
   // 提示词更新和删除
@@ -1210,6 +1204,8 @@ function App() {
       </div>
 
       <SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} isDark={isDark} />
+
+      {/* 提示词删除确认 */}
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         title="删除确认"
@@ -1233,6 +1229,57 @@ function App() {
         }}
         onCancel={() => setDeleteConfirm({ isOpen: false, promptId: null })}
       />
+
+      {/* 任务删除确认 */}
+      <ConfirmDialog
+        isOpen={deleteTaskConfirm.isOpen}
+        title="删除确认"
+        message="确定要删除此任务吗？"
+        kind="danger"
+        confirmText="删除"
+        cancelText="取消"
+        isDark={isDark}
+        onConfirm={async () => {
+          if (deleteTaskConfirm.taskId) {
+            try {
+              await TaskApi.remove(deleteTaskConfirm.taskId);
+              removeTask(deleteTaskConfirm.taskId);
+              toast.success("任务已删除");
+            } catch (err) {
+              toast.error("删除任务失败");
+              console.error(err);
+            }
+          }
+          setDeleteTaskConfirm({ isOpen: false, taskId: null });
+        }}
+        onCancel={() => setDeleteTaskConfirm({ isOpen: false, taskId: null })}
+      />
+
+      {/* 项目删除确认 */}
+      <ConfirmDialog
+        isOpen={deleteProjectConfirm.isOpen}
+        title="删除确认"
+        message="确定要删除此项目吗？所有相关任务和提示词也会被删除。"
+        kind="danger"
+        confirmText="删除"
+        cancelText="取消"
+        isDark={isDark}
+        onConfirm={async () => {
+          if (deleteProjectConfirm.projectId) {
+            try {
+              await ProjectApi.remove(deleteProjectConfirm.projectId);
+              removeProject(deleteProjectConfirm.projectId);
+              toast.success("项目已删除");
+            } catch (err) {
+              toast.error("删除项目失败");
+              console.error(err);
+            }
+          }
+          setDeleteProjectConfirm({ isOpen: false, projectId: null });
+        }}
+        onCancel={() => setDeleteProjectConfirm({ isOpen: false, projectId: null })}
+      />
+
       <ToastContainer />
     </div >
   );
