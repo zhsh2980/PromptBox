@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { SvnPrompt } from '../types';
 import { FormatSelector } from './FormatSelector';
 import { ViewModeSwitcher } from './ViewModeSwitcher';

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import MDEditor from '@uiw/react-md-editor';
 import { preprocessForPreview } from '../utils/markdown';
 

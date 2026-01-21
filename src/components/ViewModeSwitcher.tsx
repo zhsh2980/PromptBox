@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface ViewModeSwitcherProps {
   value: 'edit' | 'preview' | 'live';
   onChange: (mode: 'edit' | 'preview' | 'live') => void;

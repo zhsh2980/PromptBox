@@ -8,14 +8,12 @@ import {
   Copy,
   Settings,
   ChevronRight,
-  Bot,
   PanelLeftClose,
   PanelLeft,
   Home,
   Sun,
   Moon,
   ArrowUpDown,
-  Clock,
   Tag,
   ChevronsDownUp,
   ChevronsUpDown,
@@ -539,7 +537,8 @@ function App() {
     // 1. 如果有未保存的内容，立即保存
     if (editingPromptId === promptId) {
       // 触发保存逻辑
-      await PromptApi.update(promptId, {
+      await PromptApi.update({
+        id: promptId,
         title: editingPromptTitle || undefined,
         content: editingPromptContent,
         tags: editingPromptTags.split(",").map(t => t.trim()).filter(t => t.length > 0),
@@ -1058,7 +1057,7 @@ function App() {
                       isDark={isDark}
                       styles={styles}
                       onCopy={handleCopyPrompt}
-                      showToast={toast}
+                      showToast={toast.success}
                     />
                   );
                 }
