@@ -40,4 +40,12 @@ export const PromptApi = {
 
     /** 删除提示词记录 */
     remove: (id: number) => invoke<void>("delete_prompt_entry", { id }),
+
+    /** 更新提示词格式 */
+    updateFormat: (promptId: number, format: string) =>
+        invoke<void>("update_prompt_format", { promptId, format }),
+
+    /** 更新提示词视图模式 */
+    updateViewMode: (promptId: number, viewMode: string) =>
+        invoke<void>("update_prompt_view_mode", { promptId, viewMode }),
 };

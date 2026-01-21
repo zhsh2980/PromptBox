@@ -95,6 +95,14 @@ pub fn init_db(conn: &Connection) -> Result<(), AppError> {
         "#,
     )?;
 
+    // 迁移：为已有的 prompt_entries 表添加 format 和 view_mode 列（如果不存在）
+    let _ = conn.execute("ALTER TABLE prompt_entries ADD COLUMN format TEXT DEFAULT 'plain'", []);
+    let _ = conn.execute("ALTER TABLE prompt_entries ADD COLUMN view_mode TEXT DEFAULT 'edit'", []);
+
+    // 初始化已有记录的默认值
+    conn.execute("UPDATE prompt_entries SET format = 'plain' WHERE format IS NULL", [])?;
+    conn.execute("UPDATE prompt_entries SET view_mode = 'edit' WHERE view_mode IS NULL", [])?;
+
     // 创建 settings 表（用于存储 SVN 等配置）
     conn.execute_batch(
         r#"

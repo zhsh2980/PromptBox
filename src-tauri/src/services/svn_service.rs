@@ -173,6 +173,22 @@ fn parse_prompt_file(file_path: &Path, folder_path: &str) -> Result<SvnPrompt, A
             PromptFrontmatter::default()
         } else {
             let doc = &yaml_docs[0];
+
+            // 解析 isMarkDown 字段（兼容多种格式）
+            let is_markdown = match &doc["isMarkDown"] {
+                yaml_rust::Yaml::Integer(i) => Some(*i as i32),
+                yaml_rust::Yaml::String(s) => {
+                    // 兼容字符串格式 "1" 或 "0"
+                    match s.as_str() {
+                        "1" | "true" => Some(1),
+                        "0" | "false" => Some(0),
+                        _ => None,
+                    }
+                }
+                yaml_rust::Yaml::Boolean(b) => Some(if *b { 1 } else { 0 }),
+                _ => None,
+            };
+
             PromptFrontmatter {
                 title: doc["title"].as_str().map(|s| s.to_string()),
                 tags: doc["tags"]
@@ -183,6 +199,7 @@ fn parse_prompt_file(file_path: &Path, folder_path: &str) -> Result<SvnPrompt, A
                             .collect()
                     }),
                 model: doc["model"].as_str().map(|s| s.to_string()),
+                is_markdown,
             }
         };
 
@@ -214,6 +231,7 @@ fn parse_prompt_file(file_path: &Path, folder_path: &str) -> Result<SvnPrompt, A
         model: frontmatter.model,
         modified_at,
         file_path: file_path.to_string_lossy().to_string(),
+        is_markdown: frontmatter.is_markdown,
     })
 }
 

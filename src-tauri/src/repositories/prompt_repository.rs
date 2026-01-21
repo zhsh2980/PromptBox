@@ -12,7 +12,7 @@ pub fn list_prompts_by_task(
     tags: Option<&[String]>,
 ) -> Result<Vec<PromptEntryDto>, AppError> {
     let mut sql = String::from(
-        "SELECT id, task_id, title, content, tags, model, created_at, updated_at 
+        "SELECT id, task_id, title, content, tags, model, created_at, updated_at, format, view_mode
          FROM prompt_entries WHERE task_id = ?",
     );
 
@@ -69,6 +69,8 @@ fn parse_prompt_row(row: &rusqlite::Row) -> rusqlite::Result<PromptEntryDto> {
         model: row.get(5)?,
         created_at: row.get(6)?,
         updated_at: row.get(7)?,
+        format: row.get(8)?,
+        view_mode: row.get(9)?,
     })
 }
 
@@ -90,9 +92,9 @@ pub fn create_prompt(
     let tags_json = tags.map(|t| serde_json::to_string(t).unwrap_or_default());
 
     conn.execute(
-        "INSERT INTO prompt_entries (task_id, title, content, tags, model, created_at) 
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        params![task_id, title, content, tags_json, model, now],
+        "INSERT INTO prompt_entries (task_id, title, content, tags, model, created_at, format, view_mode)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![task_id, title, content, tags_json, model, now, "plain", "edit"],
     )?;
 
     let id = conn.last_insert_rowid();
@@ -106,6 +108,8 @@ pub fn create_prompt(
         model: model.map(|s| s.to_string()),
         created_at: now,
         updated_at: None,
+        format: Some("plain".to_string()),
+        view_mode: Some("edit".to_string()),
     })
 }
 
@@ -157,11 +161,51 @@ pub fn delete_prompt(conn: &Connection, id: i64) -> Result<(), AppError> {
 /// 获取单个提示词记录
 pub fn get_prompt(conn: &Connection, id: i64) -> Result<PromptEntryDto, AppError> {
     let prompt = conn.query_row(
-        "SELECT id, task_id, title, content, tags, model, created_at, updated_at 
+        "SELECT id, task_id, title, content, tags, model, created_at, updated_at, format, view_mode
          FROM prompt_entries WHERE id = ?1",
         params![id],
         |row| parse_prompt_row(row),
     ).map_err(|_| AppError::NotFound(format!("提示词记录 {} 不存在", id)))?;
 
     Ok(prompt)
+}
+
+/// 更新提示词格式
+pub fn update_prompt_format(
+    conn: &Connection,
+    id: i64,
+    format: &str,
+) -> Result<(), AppError> {
+    let now = Utc::now().to_rfc3339();
+
+    let affected = conn.execute(
+        "UPDATE prompt_entries SET format = ?1, updated_at = ?2 WHERE id = ?3",
+        params![format, now, id],
+    )?;
+
+    if affected == 0 {
+        return Err(AppError::NotFound(format!("提示词记录 {} 不存在", id)));
+    }
+
+    Ok(())
+}
+
+/// 更新提示词视图模式
+pub fn update_prompt_view_mode(
+    conn: &Connection,
+    id: i64,
+    view_mode: &str,
+) -> Result<(), AppError> {
+    let now = Utc::now().to_rfc3339();
+
+    let affected = conn.execute(
+        "UPDATE prompt_entries SET view_mode = ?1, updated_at = ?2 WHERE id = ?3",
+        params![view_mode, now, id],
+    )?;
+
+    if affected == 0 {
+        return Err(AppError::NotFound(format!("提示词记录 {} 不存在", id)));
+    }
+
+    Ok(())
 }
