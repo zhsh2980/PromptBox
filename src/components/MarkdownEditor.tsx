@@ -9,6 +9,7 @@ interface MarkdownEditorProps {
   readOnly?: boolean;  // 用于 SVN Prompts
   customCommands?: ICommand[];  // 自定义命令列表
   customExtraCommands?: ICommand[];  // 自定义额外命令列表
+  defaultPreview?: 'edit' | 'live' | 'preview';  // 默认视图模式
 }
 
 export function MarkdownEditor({
@@ -20,6 +21,7 @@ export function MarkdownEditor({
   readOnly = false,
   customCommands,
   customExtraCommands,
+  defaultPreview,
 }: MarkdownEditorProps) {
   return (
     <div
@@ -31,7 +33,6 @@ export function MarkdownEditor({
         value={value}
         onChange={(val) => !readOnly && onChange(val || '')}
         visibleDragbar={false}
-        hideToolbar={readOnly}
         height="100%"
         data-color-mode={isDark ? 'dark' : 'light'}
         textareaProps={{
@@ -39,6 +40,7 @@ export function MarkdownEditor({
         }}
         commands={customCommands}
         extraCommands={customExtraCommands}
+        preview={defaultPreview}
       />
     </div>
   );

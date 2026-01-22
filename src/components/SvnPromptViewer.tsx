@@ -84,6 +84,7 @@ export function SvnPromptViewer({
             readOnly={true}
             customCommands={[]}
             customExtraCommands={[commands.codePreview, commands.fullscreen]}
+            defaultPreview="preview"
           />
         ) : (
           <div
