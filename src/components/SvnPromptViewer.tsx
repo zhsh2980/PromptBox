@@ -54,7 +54,7 @@ export function SvnPromptViewer({
           <span className="px-2 py-1 bg-blue-600/20 text-blue-400 rounded text-xs border border-blue-600/30 flex-shrink-0">
             🔒 共享 (只读)
           </span>
-          <h1 className="text-xl font-semibold truncate">
+          <h1 className="text-xl font-semibold truncate flex-1">
             {prompt.title}
           </h1>
           <FormatSelector
