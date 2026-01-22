@@ -1,4 +1,4 @@
-import MDEditor, { commands, ICommand } from '@uiw/react-md-editor';
+import MDEditor, { ICommand } from '@uiw/react-md-editor';
 
 interface MarkdownEditorProps {
   value: string;
