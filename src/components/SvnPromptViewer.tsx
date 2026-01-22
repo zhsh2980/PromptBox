@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { SvnPrompt } from '../types';
 import { FormatSelector } from './FormatSelector';
-import { ViewModeSwitcher } from './ViewModeSwitcher';
 import { MarkdownEditor } from './MarkdownEditor';
 import { Copy, Clock, Bot } from 'lucide-react';
 
@@ -26,16 +25,12 @@ export function SvnPromptViewer({
   // 临时格式状态（不保存到数据库）
   const [tempFormat, setTempFormat] = useState<'plain' | 'markdown'>(defaultFormat);
 
-  // 临时视图模式（仅 Markdown 格式时使用）
-  const [tempViewMode, setTempViewMode] = useState<'edit' | 'preview' | 'live'>('preview');
-
   // 首次切换标记（用于显示 Toast）
   const [hasShownToast, setHasShownToast] = useState(false);
 
   // 当 Prompt 切换时，重置临时状态
   useEffect(() => {
     setTempFormat(defaultFormat);
-    setTempViewMode('preview');
     setHasShownToast(false);
   }, [prompt.id, defaultFormat]);
 
@@ -78,24 +73,12 @@ export function SvnPromptViewer({
         </button>
       </div>
 
-      {/* 视图模式切换（仅 Markdown 格式） */}
-      {tempFormat === 'markdown' && (
-        <div className="flex-shrink-0">
-          <ViewModeSwitcher
-            value={tempViewMode}
-            onChange={setTempViewMode}
-            isDark={isDark}
-          />
-        </div>
-      )}
-
       {/* 内容显示区 */}
       <div className="flex-1 min-h-0">
         {tempFormat === 'markdown' ? (
           <MarkdownEditor
             value={prompt.content}
             onChange={() => {}}  // 只读，不处理变化
-            viewMode={tempViewMode}
             isDark={isDark}
             readOnly={true}
           />

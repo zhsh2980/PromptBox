@@ -102,6 +102,12 @@ body {
 .w-md-editor {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+}
+
+/* 隐藏拖拽栏 */
+.w-md-editor-bar {
+  display: none !important;
 }
 
 /* 暗色主题适配 */

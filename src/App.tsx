@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { ProjectApi, TaskApi, PromptApi } from "./tauri-api";
 import { useAppStore } from "./store";
-import { ConfirmDialog, GlobalSearch, SettingsDialog, SvnProjectView, ToastContainer, toast, SvnPromptViewer, FormatSelector, ViewModeSwitcher, MarkdownEditor } from "./components";
+import { ConfirmDialog, GlobalSearch, SettingsDialog, SvnProjectView, ToastContainer, toast, SvnPromptViewer, FormatSelector, MarkdownEditor } from "./components";
 import { SortableProjectList } from "./components/SortableProjectList";
 import type { SearchResultDto, SvnPrompt } from "./types";
 
@@ -566,22 +566,6 @@ function App() {
     }
   };
 
-  // 处理视图模式切换（本地 Prompts）
-  const handleViewModeChange = async (promptId: number, newViewMode: 'edit' | 'preview' | 'live') => {
-    try {
-      await PromptApi.updateViewMode(promptId, newViewMode);
-
-      // 重新加载该任务的提示词
-      if (selectedTaskId) {
-        await loadPrompts(selectedTaskId);
-      }
-
-      // 不显示 Toast（切换频繁，避免干扰）
-    } catch (error) {
-      console.error('视图模式切换失败:', error);
-    }
-  };
-
   const currentTasks = selectedProjectId ? tasksByProject[selectedProjectId] || [] : [];
   const currentPrompts = selectedTaskId ? promptEntriesByTask[selectedTaskId] || [] : [];
 
@@ -1114,15 +1098,6 @@ function App() {
                     </button>
                   </div>
 
-                  {/* 视图模式切换器（仅 Markdown 格式） */}
-                  {selectedPrompt.format === 'markdown' && (
-                    <ViewModeSwitcher
-                      value={(selectedPrompt.view_mode || 'edit') as 'edit' | 'preview' | 'live'}
-                      onChange={(newViewMode) => handleViewModeChange(selectedPrompt.id, newViewMode)}
-                      isDark={isDark}
-                    />
-                  )}
-
                   {/* 内容编辑区 */}
                   {selectedPrompt.format === 'markdown' ? (
                     <MarkdownEditor
@@ -1130,7 +1105,6 @@ function App() {
                         ? editingPromptContent
                         : selectedPrompt.content}
                       onChange={setEditingPromptContent}
-                      viewMode={(selectedPrompt.view_mode || 'edit') as 'edit' | 'preview' | 'live'}
                       isDark={isDark}
                       onFocus={() => {
                         if (editingPromptId !== selectedPrompt.id) {
