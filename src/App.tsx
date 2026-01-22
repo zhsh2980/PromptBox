@@ -591,7 +591,7 @@ function App() {
   return (
     <div className={`flex flex-col h-screen transition-colors duration-300 ${styles.container}`}>
       {/* 顶部导航栏 */}
-      <header className={`flex items-center justify-between px-4 py-2 border-b backdrop-blur-sm ${styles.header}`}>
+      <header className={`flex items-center justify-between px-4 py-2 border-b backdrop-blur-sm z-50 ${styles.header}`}>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
