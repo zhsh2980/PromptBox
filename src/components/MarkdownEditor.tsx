@@ -1,6 +1,4 @@
-import { useMemo } from 'react';
-import MDEditor from '@uiw/react-md-editor';
-import { preprocessForPreview } from '../utils/markdown';
+import MDEditor, { commands, ICommand } from '@uiw/react-md-editor';
 
 interface MarkdownEditorProps {
   value: string;
@@ -9,6 +7,8 @@ interface MarkdownEditorProps {
   onBlur?: () => void;
   onFocus?: () => void;
   readOnly?: boolean;  // 用于 SVN Prompts
+  customCommands?: ICommand[];  // 自定义命令列表
+  customExtraCommands?: ICommand[];  // 自定义额外命令列表
 }
 
 export function MarkdownEditor({
@@ -18,6 +18,8 @@ export function MarkdownEditor({
   onBlur,
   onFocus,
   readOnly = false,
+  customCommands,
+  customExtraCommands,
 }: MarkdownEditorProps) {
   return (
     <div
@@ -35,6 +37,8 @@ export function MarkdownEditor({
         textareaProps={{
           placeholder: '输入 Markdown 内容...',
         }}
+        commands={customCommands}
+        extraCommands={customExtraCommands}
       />
     </div>
   );

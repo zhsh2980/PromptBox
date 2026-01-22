@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { SvnPrompt } from '../types';
 import { FormatSelector } from './FormatSelector';
 import { MarkdownEditor } from './MarkdownEditor';
+import { commands } from '@uiw/react-md-editor';
 import { Copy, Clock, Bot } from 'lucide-react';
 
 interface SvnPromptViewerProps {
@@ -81,6 +82,8 @@ export function SvnPromptViewer({
             onChange={() => {}}  // 只读，不处理变化
             isDark={isDark}
             readOnly={true}
+            customCommands={[]}
+            customExtraCommands={[commands.codePreview, commands.fullscreen]}
           />
         ) : (
           <div
