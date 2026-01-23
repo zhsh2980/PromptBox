@@ -109,7 +109,7 @@ pub fn update_prompt_entry(
 #[tauri::command]
 pub fn delete_prompt_entry(id: i64, db: State<DbState>) -> Result<(), ApiError> {
     info!("delete_prompt_entry 调用: id={}", id);
-    
+
     let conn = db.0.lock().map_err(|e| {
         error!("获取数据库锁失败: {}", e);
         ApiError {
@@ -120,6 +120,52 @@ pub fn delete_prompt_entry(id: i64, db: State<DbState>) -> Result<(), ApiError> 
 
     prompt_repository::delete_prompt(&conn, id).map_err(|e| {
         error!("delete_prompt_entry 错误: {:?}", e);
+        e.into()
+    })
+}
+
+/// 更新提示词格式
+#[tauri::command]
+pub fn update_prompt_format(
+    promptId: i64,
+    format: String,
+    db: State<DbState>,
+) -> Result<(), ApiError> {
+    info!("update_prompt_format 调用: promptId={}, format={}", promptId, format);
+
+    let conn = db.0.lock().map_err(|e| {
+        error!("获取数据库锁失败: {}", e);
+        ApiError {
+            code: "LOCK_ERROR".to_string(),
+            message: format!("获取数据库锁失败: {}", e),
+        }
+    })?;
+
+    prompt_repository::update_prompt_format(&conn, promptId, &format).map_err(|e| {
+        error!("update_prompt_format 错误: {:?}", e);
+        e.into()
+    })
+}
+
+/// 更新提示词视图模式
+#[tauri::command]
+pub fn update_prompt_view_mode(
+    promptId: i64,
+    viewMode: String,
+    db: State<DbState>,
+) -> Result<(), ApiError> {
+    info!("update_prompt_view_mode 调用: promptId={}, viewMode={}", promptId, viewMode);
+
+    let conn = db.0.lock().map_err(|e| {
+        error!("获取数据库锁失败: {}", e);
+        ApiError {
+            code: "LOCK_ERROR".to_string(),
+            message: format!("获取数据库锁失败: {}", e),
+        }
+    })?;
+
+    prompt_repository::update_prompt_view_mode(&conn, promptId, &viewMode).map_err(|e| {
+        error!("update_prompt_view_mode 错误: {:?}", e);
         e.into()
     })
 }

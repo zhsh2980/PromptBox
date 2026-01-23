@@ -71,6 +71,8 @@ pub fn run() {
             create_prompt_entry,
             update_prompt_entry,
             delete_prompt_entry,
+            update_prompt_format,
+            update_prompt_view_mode,
             // 搜索命令
             search_prompt_entries,
             // 设置命令

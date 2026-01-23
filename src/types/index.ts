@@ -30,6 +30,10 @@ export interface PromptEntryDto {
     model?: string | null;
     created_at: string;
     updated_at?: string | null;
+    /** 内容格式 ('plain' | 'markdown') */
+    format?: string | null;
+    /** 视图模式 ('edit' | 'preview' | 'live') */
+    view_mode?: string | null;
 }
 
 /** 搜索结果来源 */
@@ -87,4 +91,6 @@ export interface SvnPrompt {
     model?: string | null;
     modified_at: string;
     file_path: string;
+    /** 是否为 Markdown 格式（0=纯文本，1=Markdown，undefined=默认0） */
+    is_markdown?: number | null;
 }

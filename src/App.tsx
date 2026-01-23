@@ -8,21 +8,19 @@ import {
   Copy,
   Settings,
   ChevronRight,
-  Bot,
   PanelLeftClose,
   PanelLeft,
   Home,
   Sun,
   Moon,
   ArrowUpDown,
-  Clock,
   Tag,
   ChevronsDownUp,
   ChevronsUpDown,
 } from "lucide-react";
 import { ProjectApi, TaskApi, PromptApi } from "./tauri-api";
 import { useAppStore } from "./store";
-import { ConfirmDialog, GlobalSearch, SettingsDialog, SvnProjectView, ToastContainer, toast } from "./components";
+import { ConfirmDialog, GlobalSearch, SettingsDialog, SvnProjectView, ToastContainer, toast, SvnPromptViewer, FormatSelector, MarkdownEditor } from "./components";
 import { SortableProjectList } from "./components/SortableProjectList";
 import type { SearchResultDto, SvnPrompt } from "./types";
 
@@ -534,6 +532,40 @@ function App() {
     }
   };
 
+  // 处理格式切换（本地 Prompts）
+  const handleFormatChange = async (promptId: number, newFormat: 'plain' | 'markdown') => {
+    // 1. 如果有未保存的内容，立即保存
+    if (editingPromptId === promptId) {
+      // 触发保存逻辑
+      await PromptApi.update({
+        id: promptId,
+        title: editingPromptTitle || undefined,
+        content: editingPromptContent,
+        tags: editingPromptTags.split(",").map(t => t.trim()).filter(t => t.length > 0),
+      });
+    }
+
+    // 2. 更新格式字段到数据库
+    try {
+      await PromptApi.updateFormat(promptId, newFormat);
+
+      // 3. 重新加载该任务的提示词
+      if (selectedTaskId) {
+        await loadPrompts(selectedTaskId);
+      }
+
+      // 4. 显示 Toast 提示
+      toast.success(
+        newFormat === 'markdown'
+          ? '已切换到 Markdown 模式'
+          : '已切换到纯文本模式'
+      );
+    } catch (error) {
+      console.error('格式切换失败:', error);
+      toast.error('格式切换失败');
+    }
+  };
+
   const currentTasks = selectedProjectId ? tasksByProject[selectedProjectId] || [] : [];
   const currentPrompts = selectedTaskId ? promptEntriesByTask[selectedTaskId] || [] : [];
 
@@ -559,7 +591,7 @@ function App() {
   return (
     <div className={`flex flex-col h-screen transition-colors duration-300 ${styles.container}`}>
       {/* 顶部导航栏 */}
-      <header className={`flex items-center justify-between px-4 py-2 border-b backdrop-blur-sm ${styles.header}`}>
+      <header className={`flex items-center justify-between px-4 py-2 border-b backdrop-blur-sm z-50 ${styles.header}`}>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -1004,74 +1036,76 @@ function App() {
                 // 显示 SVN 提示词（只读模式）
                 if (selectedSvnPromptObj) {
                   return (
-                    <div className="w-full h-full flex flex-col gap-4">
-                      {/* 顶部：标题和复制按钮在同一行 */}
-                      <div className="flex items-center justify-between gap-4 flex-shrink-0">
-                        <div className="flex-1 flex items-center gap-2">
-                          <span className="px-2 py-1 bg-blue-600/20 text-blue-400 rounded text-xs border border-blue-600/30 flex-shrink-0">
-                            共享 (只读)
-                          </span>
-                          <h1 className="text-xl font-semibold truncate">
-                            {selectedSvnPromptObj.title}
-                          </h1>
-                        </div>
-                        <button
-                          onClick={() => handleCopyPrompt(selectedSvnPromptObj!.content)}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm transition-colors text-white flex-shrink-0"
-                          title="复制内容"
-                        >
-                          <Copy className="w-4 h-4" />
-                          复制
-                        </button>
-                      </div>
-
-                      {/* 内容显示区（只读） */}
-                      <div
-                        className={`w-full flex-1 min-h-0 p-4 border rounded-lg text-sm font-mono leading-relaxed whitespace-pre-wrap overflow-auto ${styles.contentArea} ${
-                          isDark ? "text-zinc-200" : "text-slate-800"
-                        }`}
-                      >
-                        {selectedSvnPromptObj.content}
-                      </div>
-
-                      {/* 底部元数据行：模型 + 标签 + 修改时间 */}
-                      <div className="flex items-center gap-3 flex-wrap text-sm">
-                        {selectedSvnPromptObj.model && (
-                          <div className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg ${styles.contentArea}`}>
-                            <Bot className={`w-4 h-4 ${styles.iconMuted}`} />
-                            <span className={styles.textSecondary}>
-                              {selectedSvnPromptObj.model}
-                            </span>
-                          </div>
-                        )}
-                        {selectedSvnPromptObj.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className={`px-3 py-1.5 border rounded-lg ${styles.contentArea}`}
-                          >
-                            #{tag}
-                          </span>
-                        ))}
-                        {selectedSvnPromptObj.modified_at && (
-                          <div className={`ml-auto flex items-center gap-1.5 ${styles.textMuted}`}>
-                            <Clock className="w-4 h-4" />
-                            <span className="text-xs">{selectedSvnPromptObj.modified_at}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    <SvnPromptViewer
+                      prompt={selectedSvnPromptObj}
+                      isDark={isDark}
+                      styles={styles}
+                      onCopy={handleCopyPrompt}
+                      showToast={toast.success}
+                    />
                   );
                 }
 
                 // 显示数据库提示词（可编辑）
                 return selectedPrompt ? (
                 <div className="w-full flex flex-col h-full gap-4">
-                  {/* 顶部：标题和复制按钮在同一行 */}
+                  {/* 顶部：标题、格式选择器和复制按钮在同一行 */}
                   <div className="flex items-center justify-between gap-4">
-                    <input
-                      type="text"
-                      value={editingPromptId === selectedPrompt.id ? editingPromptTitle : (selectedPrompt.title || "")}
-                      onChange={(e) => setEditingPromptTitle(e.target.value)}
+                    <div className="flex items-center gap-2 flex-1">
+                      <input
+                        type="text"
+                        value={editingPromptId === selectedPrompt.id ? editingPromptTitle : (selectedPrompt.title || "")}
+                        onChange={(e) => setEditingPromptTitle(e.target.value)}
+                        onFocus={() => {
+                          if (editingPromptId !== selectedPrompt.id) {
+                            const title = selectedPrompt.title || "";
+                            const content = selectedPrompt.content;
+                            const tags = selectedPrompt.tags?.join(", ") || "";
+                            setEditingPromptId(selectedPrompt.id);
+                            setEditingPromptTitle(title);
+                            setEditingPromptContent(content);
+                            setEditingPromptTags(tags);
+                            // 记录原始值
+                            setOriginalPromptTitle(title);
+                            setOriginalPromptContent(content);
+                            setOriginalPromptTags(tags);
+                          }
+                        }}
+                        onBlur={() => {
+                          if (editingPromptId === selectedPrompt.id) {
+                            handleUpdatePrompt(selectedPrompt.id);
+                          }
+                        }}
+                        placeholder="输入标题..."
+                        className={`flex-1 text-xl font-semibold bg-transparent border-b border-dashed outline-none px-1 py-0.5 transition-all hover:border-solid hover:bg-opacity-50 focus:border-solid focus:border-blue-500 ${isDark
+                          ? "text-white placeholder-zinc-600 border-zinc-600 hover:bg-zinc-700/30"
+                          : "text-slate-900 placeholder-slate-400 border-slate-300 hover:bg-slate-100"
+                        }`}
+                      />
+                      <FormatSelector
+                        value={(selectedPrompt.format || 'plain') as 'plain' | 'markdown'}
+                        onChange={(newFormat) => handleFormatChange(selectedPrompt.id, newFormat)}
+                        isDark={isDark}
+                      />
+                    </div>
+                    <button
+                      onClick={() => handleCopyPrompt(selectedPrompt.content)}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm transition-colors text-white flex-shrink-0"
+                      title="复制内容 (Cmd+C)"
+                    >
+                      <Copy className="w-4 h-4" />
+                      复制
+                    </button>
+                  </div>
+
+                  {/* 内容编辑区 */}
+                  {selectedPrompt.format === 'markdown' ? (
+                    <MarkdownEditor
+                      value={editingPromptId === selectedPrompt.id
+                        ? editingPromptContent
+                        : selectedPrompt.content}
+                      onChange={setEditingPromptContent}
+                      isDark={isDark}
                       onFocus={() => {
                         if (editingPromptId !== selectedPrompt.id) {
                           const title = selectedPrompt.title || "";
@@ -1092,57 +1126,43 @@ function App() {
                           handleUpdatePrompt(selectedPrompt.id);
                         }
                       }}
-                      placeholder="输入标题..."
-                      className={`flex-1 text-xl font-semibold bg-transparent border-b border-dashed outline-none px-1 py-0.5 transition-all hover:border-solid hover:bg-opacity-50 focus:border-solid focus:border-blue-500 ${isDark
-                        ? "text-white placeholder-zinc-600 border-zinc-600 hover:bg-zinc-700/30"
-                        : "text-slate-900 placeholder-slate-400 border-slate-300 hover:bg-slate-100"
-                      }`}
                     />
-                    <button
-                      onClick={() => handleCopyPrompt(selectedPrompt.content)}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm transition-colors text-white flex-shrink-0"
-                      title="复制内容 (Cmd+C)"
-                    >
-                      <Copy className="w-4 h-4" />
-                      复制
-                    </button>
-                  </div>
-
-                  {/* 内容编辑区 */}
-                  <textarea
-                    value={editingPromptId === selectedPrompt.id
-                      ? editingPromptContent
-                      : (selectedPrompt.content.trim() ? selectedPrompt.content : "")}
-                    onChange={(e) => setEditingPromptContent(e.target.value)}
-                    onFocus={() => {
-                      if (editingPromptId !== selectedPrompt.id) {
-                        const title = selectedPrompt.title || "";
-                        // 如果内容只有空格，聚焦时清空让用户直接输入
-                        const content = selectedPrompt.content.trim() ? selectedPrompt.content : "";
-                        const tags = selectedPrompt.tags?.join(", ") || "";
-                        setEditingPromptId(selectedPrompt.id);
-                        setEditingPromptTitle(title);
-                        setEditingPromptContent(content);
-                        setEditingPromptTags(tags);
-                        // 记录原始值（保存原始的content，用于判断是否为新建）
-                        setOriginalPromptTitle(title);
-                        setOriginalPromptContent(selectedPrompt.content);
-                        setOriginalPromptTags(tags);
-                      }
-                    }}
-                    onBlur={() => {
-                      if (editingPromptId === selectedPrompt.id) {
-                        // 如果内容为空，保存时用空格（后端需要非空）
-                        if (!editingPromptContent.trim()) {
-                          setEditingPromptContent(" ");
+                  ) : (
+                    <textarea
+                      value={editingPromptId === selectedPrompt.id
+                        ? editingPromptContent
+                        : (selectedPrompt.content.trim() ? selectedPrompt.content : "")}
+                      onChange={(e) => setEditingPromptContent(e.target.value)}
+                      onFocus={() => {
+                        if (editingPromptId !== selectedPrompt.id) {
+                          const title = selectedPrompt.title || "";
+                          // 如果内容只有空格，聚焦时清空让用户直接输入
+                          const content = selectedPrompt.content.trim() ? selectedPrompt.content : "";
+                          const tags = selectedPrompt.tags?.join(", ") || "";
+                          setEditingPromptId(selectedPrompt.id);
+                          setEditingPromptTitle(title);
+                          setEditingPromptContent(content);
+                          setEditingPromptTags(tags);
+                          // 记录原始值（保存原始的content，用于判断是否为新建）
+                          setOriginalPromptTitle(title);
+                          setOriginalPromptContent(selectedPrompt.content);
+                          setOriginalPromptTags(tags);
                         }
-                        handleUpdatePrompt(selectedPrompt.id);
-                      }
-                    }}
-                    placeholder="输入提示词内容..."
-                    className={`w-full flex-1 min-h-0 p-4 border rounded-lg text-sm resize-none focus:outline-none focus:border-blue-500/50 font-mono leading-relaxed ${styles.contentArea} ${isDark ? "text-zinc-200" : "text-slate-800"
-                      }`}
-                  />
+                      }}
+                      onBlur={() => {
+                        if (editingPromptId === selectedPrompt.id) {
+                          // 如果内容为空，保存时用空格（后端需要非空）
+                          if (!editingPromptContent.trim()) {
+                            setEditingPromptContent(" ");
+                          }
+                          handleUpdatePrompt(selectedPrompt.id);
+                        }
+                      }}
+                      placeholder="输入提示词内容..."
+                      className={`w-full flex-1 min-h-0 p-4 border rounded-lg text-sm resize-none focus:outline-none focus:border-blue-500/50 font-mono leading-relaxed ${styles.contentArea} ${isDark ? "text-zinc-200" : "text-slate-800"
+                        }`}
+                    />
+                  )}
 
                   {/* 底部元数据行：标签 */}
                   <div className="flex items-center gap-3 flex-wrap text-sm flex-shrink-0">
