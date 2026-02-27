@@ -1,6 +1,6 @@
 [package]
 name = "promptlog"
-version = "1.0.12"
+version = "1.0.13"
 description = "提示词记录软件 - 按项目/任务结构化管理 AI 提示词"
 authors = ["you"]
 edition = "2021"
@@ -28,6 +28,4 @@ chrono = { version = "0.4", features = ["serde"] }
 thiserror = "1"
 log = "0.4"
 simplelog = "0.12"
-yaml-rust = "0.4"
-regex = "1.10"
 walkdir = "2"
