@@ -56,17 +56,3 @@ pub struct SvnPrompt {
     /// 是否为 Markdown 格式（0=纯文本，1=Markdown，None=默认0）
     pub is_markdown: Option<i32>,
 }
-
-/// 提示词文件的 YAML Frontmatter 结构
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct PromptFrontmatter {
-    #[serde(default)]
-    pub title: Option<String>,
-    #[serde(default)]
-    pub tags: Option<Vec<String>>,
-    #[serde(default)]
-    pub model: Option<String>,
-    /// Markdown 标记字段（兼容 frontmatter 中的 isMarkDown）
-    #[serde(default, rename = "isMarkDown")]
-    pub is_markdown: Option<i32>,
-}

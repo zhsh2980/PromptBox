@@ -1,14 +1,12 @@
 // SVN 服务层
 
 use crate::error::AppError;
-use crate::models::{SvnFolder, SvnPrompt, PromptFrontmatter};
+use crate::models::{SvnFolder, SvnPrompt};
 use chrono::Utc;
-use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use walkdir::WalkDir;
-use yaml_rust::YamlLoader;
 
 // Windows 平台需要隐藏控制台窗口
 #[cfg(target_os = "windows")]
@@ -155,83 +153,34 @@ fn get_file_modified_time(file_path: &Path) -> Result<String, AppError> {
     Ok(Utc::now().format("%Y-%m-%d %H:%M:%S").to_string())
 }
 
-/// 解析提示词文件（YAML frontmatter + 内容）
+/// 解析提示词文件（文件名作为标题，扩展名决定格式）
 fn parse_prompt_file(file_path: &Path, folder_path: &str) -> Result<SvnPrompt, AppError> {
     let content = fs::read_to_string(file_path)?;
 
-    // 正则匹配 YAML frontmatter: ---\n...\n---\n
-    let re = Regex::new(r"(?s)^---\s*\n(.*?)\n---\s*\n(.*)$").unwrap();
-
-    let (frontmatter, body) = if let Some(caps) = re.captures(&content) {
-        // 有 frontmatter
-        let yaml_str = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-        let body = caps.get(2).map(|m| m.as_str()).unwrap_or("");
-
-        // 解析 YAML
-        let yaml_docs = YamlLoader::load_from_str(yaml_str).unwrap_or_default();
-        let frontmatter = if yaml_docs.is_empty() {
-            PromptFrontmatter::default()
-        } else {
-            let doc = &yaml_docs[0];
-
-            // 解析 isMarkDown 字段（兼容多种格式）
-            let is_markdown = match &doc["isMarkDown"] {
-                yaml_rust::Yaml::Integer(i) => Some(*i as i32),
-                yaml_rust::Yaml::String(s) => {
-                    // 兼容字符串格式 "1" 或 "0"
-                    match s.as_str() {
-                        "1" | "true" => Some(1),
-                        "0" | "false" => Some(0),
-                        _ => None,
-                    }
-                }
-                yaml_rust::Yaml::Boolean(b) => Some(if *b { 1 } else { 0 }),
-                _ => None,
-            };
-
-            PromptFrontmatter {
-                title: doc["title"].as_str().map(|s| s.to_string()),
-                tags: doc["tags"]
-                    .as_vec()
-                    .map(|v| {
-                        v.iter()
-                            .filter_map(|y| y.as_str().map(|s| s.to_string()))
-                            .collect()
-                    }),
-                model: doc["model"].as_str().map(|s| s.to_string()),
-                is_markdown,
-            }
-        };
-
-        (frontmatter, body.to_string())
-    } else {
-        // 没有 frontmatter，整个文件作为内容
-        (PromptFrontmatter::default(), content)
-    };
-
-    // 获取文件名作为默认标题
-    let file_name = file_path
+    // 文件名作为标题（去掉扩展名）
+    let title = file_path
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("未命名")
         .to_string();
 
-    let title = frontmatter.title.unwrap_or(file_name);
-    let tags = frontmatter.tags.unwrap_or_default();
+    // 根据文件扩展名判断是否为 Markdown
+    let is_markdown = file_path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| if ext.eq_ignore_ascii_case("md") { 1 } else { 0 });
 
-    // 获取修改时间
     let modified_at = get_file_modified_time(file_path)?;
 
     Ok(SvnPrompt {
         id: file_path.to_string_lossy().to_string(),
         folder_path: folder_path.to_string(),
         title,
-        content: body.trim().to_string(),
-        tags,
-        model: frontmatter.model,
+        content: content.trim().to_string(),
+        tags: vec![],
+        model: None,
         modified_at,
         file_path: file_path.to_string_lossy().to_string(),
-        is_markdown: frontmatter.is_markdown,
+        is_markdown,
     })
 }
 

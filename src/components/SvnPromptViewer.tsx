@@ -3,7 +3,7 @@ import { SvnPrompt } from '../types';
 import { FormatSelector } from './FormatSelector';
 import { MarkdownEditor } from './MarkdownEditor';
 import { commands } from '@uiw/react-md-editor';
-import { Copy, Clock, Bot } from 'lucide-react';
+import { Copy, Clock } from 'lucide-react';
 
 interface SvnPromptViewerProps {
   prompt: SvnPrompt;
@@ -99,22 +99,6 @@ export function SvnPromptViewer({
 
       {/* 底部元数据行 */}
       <div className="flex items-center gap-3 flex-wrap text-sm flex-shrink-0">
-        {prompt.model && (
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg ${styles.contentArea}`}>
-            <Bot className={`w-4 h-4 ${styles.iconMuted}`} />
-            <span className={styles.textSecondary}>
-              {prompt.model}
-            </span>
-          </div>
-        )}
-        {prompt.tags.map((tag) => (
-          <span
-            key={tag}
-            className={`px-3 py-1.5 border rounded-lg ${styles.contentArea}`}
-          >
-            #{tag}
-          </span>
-        ))}
         {prompt.modified_at && (
           <div className={`ml-auto flex items-center gap-1.5 ${styles.textMuted}`}>
             <Clock className="w-4 h-4" />
